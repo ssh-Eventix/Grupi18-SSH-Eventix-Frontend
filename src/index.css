@@ -54,6 +54,79 @@ body {
   margin: 0;
 }
 
+.app-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  border-bottom: 1px solid var(--border);
+  padding: 14px 24px;
+}
+
+.app-nav a {
+  color: var(--text-h);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  min-height: calc(100svh - 53px);
+}
+
+.sidebar {
+  border-right: 1px solid var(--border);
+  padding: 24px 18px;
+  text-align: left;
+}
+
+.sidebar h2 {
+  margin: 0 0 4px;
+}
+
+.sidebar p {
+  color: var(--text);
+  font-size: 14px;
+  margin-bottom: 18px;
+}
+
+.sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sidebar a {
+  border-radius: 6px;
+  color: var(--text-h);
+  font-size: 15px;
+  font-weight: 600;
+  padding: 9px 10px;
+  text-decoration: none;
+}
+
+.sidebar a.active,
+.sidebar a:hover {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.content {
+  min-width: 0;
+}
+
+.topbar {
+  border-bottom: 1px solid var(--border);
+  padding: 14px 24px;
+  text-align: left;
+}
+
+.topbar h1 {
+  font-size: 24px;
+  margin: 0;
+}
+
 #root {
   width: 1126px;
   max-width: 100%;
@@ -108,4 +181,200 @@ code {
   line-height: 135%;
   padding: 4px 8px;
   background: var(--code-bg);
+}
+
+.page {
+  width: 100%;
+  padding: 24px;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.page-actions {
+  width: 100%;
+  max-width: 960px;
+  margin: -8px auto 20px;
+  text-align: right;
+}
+
+.page-actions button {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-h);
+  cursor: pointer;
+  padding: 8px 12px;
+}
+
+.dynamic-form,
+.table-panel {
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto 20px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.dynamic-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-field label {
+  color: var(--text-h);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.required-mark,
+.field-error {
+  color: #dc2626;
+}
+
+.field-error {
+  font-size: 12px;
+}
+
+.dynamic-form input,
+.dynamic-form select,
+.dynamic-form textarea,
+.table-toolbar input,
+.pagination select {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-h);
+  padding: 9px 10px;
+  box-sizing: border-box;
+}
+
+.dynamic-form textarea {
+  resize: vertical;
+}
+
+.form-submit,
+.table-panel button,
+.dynamic-form button {
+  border: 0;
+  border-radius: 6px;
+  background: var(--text-h);
+  color: var(--bg);
+  cursor: pointer;
+  padding: 9px 12px;
+}
+
+.form-submit {
+  align-self: end;
+}
+
+.form-submit:disabled,
+.dynamic-form input:disabled,
+.dynamic-form select:disabled,
+.dynamic-form textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.table-toolbar,
+.search-bar,
+.pagination,
+.actions-cell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.table-toolbar,
+.search-bar {
+  margin-bottom: 14px;
+}
+
+.table-toolbar input,
+.search-bar input {
+  flex: 1;
+  max-width: 320px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.table-panel table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table-panel th,
+.table-panel td {
+  border-bottom: 1px solid var(--border);
+  padding: 10px;
+}
+
+.table-panel th {
+  color: var(--text-h);
+  font-size: 14px;
+}
+
+.pagination {
+  margin-top: 14px;
+}
+
+.pagination select {
+  width: auto;
+}
+
+.status-text {
+  color: var(--text);
+}
+
+.skeleton {
+  display: block;
+  overflow: hidden;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    var(--code-bg) 0%,
+    var(--border) 45%,
+    var(--code-bg) 90%
+  );
+  background-size: 220% 100%;
+  animation: skeleton-loading 1.15s ease-in-out infinite;
+}
+
+.skeleton-heading {
+  width: 70%;
+  height: 14px;
+}
+
+.skeleton-line {
+  width: 100%;
+  height: 16px;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 120% 0;
+  }
+
+  100% {
+    background-position: -120% 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .dynamic-form {
+    grid-template-columns: 1fr;
+  }
 }
