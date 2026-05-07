@@ -1,6 +1,16 @@
 import { NavLink, Outlet } from "react-router-dom";
 
 const SuperAdminLayout = () => {
+  const links = [
+    { path: "/superadmin", label: "Dashboard", end: true },
+    { path: "/superadmin/bookings", label: "Bookings" },
+    { path: "/superadmin/tickets", label: "Tickets" },
+    { path: "/superadmin/ticket-types", label: "Ticket Types" },
+    { path: "/superadmin/reports", label: "Reports" },
+    { path: "/superadmin/staff", label: "Staff" },
+    { path: "/superadmin/settings", label: "Settings" }
+  ];
+
   return (
     <div className="layout">
       <aside className="sidebar">
@@ -8,14 +18,11 @@ const SuperAdminLayout = () => {
         <p>Super Admin</p>
 
         <nav>
-          <NavLink to="/superadmin">Dashboard</NavLink>
-          <NavLink to="/superadmin/tenants">Tenants</NavLink>
-          <NavLink to="/superadmin/create-tenant">Create Tenant</NavLink>
-          <NavLink to="/superadmin/users">Tenant Users</NavLink>
-          <NavLink to="/superadmin/events">All Events</NavLink>
-          <NavLink to="/superadmin/reports">Platform Reports</NavLink>
-          <NavLink to="/superadmin/logs">System Logs</NavLink>
-          <NavLink to="/superadmin/settings">System Settings</NavLink>
+          {links.map((link) => (
+            <NavLink key={link.path} to={link.path} end={link.end}>
+              {link.label}
+            </NavLink>
+          ))}
         </nav>
       </aside>
 
