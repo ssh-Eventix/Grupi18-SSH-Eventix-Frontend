@@ -11,6 +11,14 @@ import BookingsPage from "../pages/superadmin/BookingsPage";
 import TicketsPage from "../pages/superadmin/TicketsPage";
 import TicketTypesPage from "../pages/superadmin/TicketTypesPage";
 
+import EventCategoriesPage from "../pages/tenant/EventCategoriesPage";
+import EventsPage from "../pages/tenant/EventsPage";
+import EventSectionsPage from "../pages/tenant/EventSectionsPage";
+import VenuesPage from "../pages/tenant/VenuesPage";
+import VenueSectionsPage from "../pages/tenant/VenueSectionsPage";
+
+import TenantsPage from "../pages/superadmin/TenantsPage";
+
 function AppRoutes() {
   return (
     <Routes>
@@ -26,10 +34,14 @@ function AppRoutes() {
         }
       />
 
-      <Route path="/events" element={<EventsPage />} />
-      <Route path="/venues" element={<VenuesPage />} />
+      <Route path="/tenant/event-categories" element={<EventCategoriesPage />} />
+      <Route path="/tenant/events" element={<EventsPage />} />
+      <Route path="/tenant/event-sections" element={<EventSectionsPage />} />
+      <Route path="/tenant/venues" element={<VenuesPage />} />
+      <Route path="/tenant/venue-sections" element={<VenueSectionsPage />} />
 
       <Route path="/superadmin" element={<SuperAdminLayout />}>
+       <Route path="/superadmin/tenants" element={<TenantsPage />} />
         <Route index element={<SuperAdminDashboard />} />
         <Route path="bookings" element={<BookingsPage />} />
         <Route path="tickets" element={<TicketsPage />} />
