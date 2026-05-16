@@ -1,0 +1,25 @@
+import EntityCrudPage from "../../components/crud/EntityCrudPage";
+import { eventCategoriesApi } from "../../api/eventCategoriesApi";
+
+export default function EventCategoriesPage() {
+  return (
+    <EntityCrudPage
+      title="Event Categories"
+      api={eventCategoriesApi}
+      initialForm={{
+        name: "",
+        description: "",
+        icon: "",
+        displayOrder: 0,
+        isActive: true,
+      }}
+      fields={[
+        { name: "name", label: "Name" },
+        { name: "description", label: "Description" },
+        { name: "icon", label: "Icon" },
+        { name: "displayOrder", label: "Display Order", type: "number" },
+        { name: "isActive", label: "Active", type: "checkbox" },
+      ]}
+    />
+  );
+}
