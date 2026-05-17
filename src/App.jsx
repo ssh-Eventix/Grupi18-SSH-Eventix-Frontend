@@ -7,6 +7,8 @@ import SuperAdminLayout from "./layouts/SuperAdminLayout.jsx";
 import BookingsPage from "./pages/superadmin/BookingsPage.jsx";
 import TicketsPage from "./pages/superadmin/TicketsPage.jsx";
 import TicketTypesPage from "./pages/superadmin/TicketTypesPage.jsx";
+import LoginPage from "./pages/public/LoginPage.jsx";
+import Register from "./pages/public/Register.jsx";
 
 const initialEvents = [
   { id: 1, name: "Tech Meetup", venue: "Prishtina Hall", date: "2026-05-12", status: "Open" },
@@ -15,17 +17,6 @@ const initialEvents = [
   { id: 4, name: "Design Workshop", venue: "Creative Space", date: "2026-06-02", status: "Draft" },
   { id: 5, name: "Food Festival", venue: "City Park", date: "2026-06-10", status: "Open" }
 ];
-
-const Login = () => { 
-  const { login } = useAuth();
-
-  return (
-    <main className="page">
-      <h1>Login Page</h1>
-      <button onClick={login}>Login demo</button>
-    </main>
-  );
-};
 
 const Dashboard = () => {
   return (
@@ -148,10 +139,13 @@ function AppRoutes() {
         <Link to="/bookings">Bookings</Link>
         <Link to="/superadmin">SuperAdmin</Link>
         <Link to="/venues">Venues</Link>
+        <Link to="/login">Login</Link>
+        <Link to="/register">Register</Link>
       </nav>
 
       <Routes>
-        <Route path="/login" element={<Login />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<Register />} />
 
         <Route
           path="/dashboard"

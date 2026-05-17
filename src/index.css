@@ -339,6 +339,33 @@ code {
   color: var(--text);
 }
 
+.form-alert {
+  width: 100%;
+  max-width: 960px;
+  box-sizing: border-box;
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  border-radius: 6px;
+  background: rgba(220, 38, 38, 0.08);
+  color: #dc2626;
+  font-size: 14px;
+  margin: 0 auto 14px;
+  padding: 10px 12px;
+}
+
+.page-note {
+  color: var(--text);
+  font-size: 14px;
+  margin: 0 auto;
+  max-width: 960px;
+  text-align: center;
+}
+
+.page-note a {
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+
 .skeleton {
   display: block;
   overflow: hidden;

@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useState } from "react";
 
 export default function DynamicForm({
@@ -5,6 +6,7 @@ export default function DynamicForm({
   onSubmit,
   initialValues = {},
   submitText = "Save",
+  loadingText = "Saving...",
   loading = false
 }) {
   const [formData, setFormData] = useState(initialValues || {});
@@ -110,7 +112,7 @@ export default function DynamicForm({
       ))}
 
       <button className="form-submit" type="submit" disabled={loading}>
-        {loading ? "Saving..." : submitText}
+        {loading ? loadingText : submitText}
       </button>
     </form>
   );
