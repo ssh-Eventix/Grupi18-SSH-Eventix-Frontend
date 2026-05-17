@@ -9,6 +9,7 @@ import TicketsPage from "./pages/superadmin/TicketsPage.jsx";
 import TicketTypesPage from "./pages/superadmin/TicketTypesPage.jsx";
 import LoginPage from "./pages/public/LoginPage.jsx";
 import Register from "./pages/public/Register.jsx";
+import ProfilePage from "./pages/ProfilePage.jsx";
 
 const initialEvents = [
   { id: 1, name: "Tech Meetup", venue: "Prishtina Hall", date: "2026-05-12", status: "Open" },
@@ -139,6 +140,7 @@ function AppRoutes() {
         <Link to="/bookings">Bookings</Link>
         <Link to="/superadmin">SuperAdmin</Link>
         <Link to="/venues">Venues</Link>
+        <Link to="/profile">Profile</Link>
         <Link to="/login">Login</Link>
         <Link to="/register">Register</Link>
       </nav>
@@ -146,6 +148,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/profile" element={<ProfilePage />} />
 
         <Route
           path="/dashboard"

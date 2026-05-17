@@ -206,6 +206,11 @@ code {
   padding: 8px 12px;
 }
 
+.page-actions .logout-button {
+  background: #fff;
+  color: #08060d;
+}
+
 .dynamic-form,
 .table-panel {
   width: 100%;
