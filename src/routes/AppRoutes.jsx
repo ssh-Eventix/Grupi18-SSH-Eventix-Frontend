@@ -4,6 +4,7 @@ import ProtectedRoute from "../auth/ProtectedRoute";
 
 import HomePage from "../pages/buyer/HomePage";
 import LoginPage from "../pages/public/LoginPage";
+import Register from "../pages/public/Register";
 import DashboardPage from "../pages/tenant/DashboardPage";
 
 import SuperAdminLayout from "../layouts/SuperAdminLayout";
@@ -19,11 +20,19 @@ import VenueSectionsPage from "../pages/tenant/VenueSectionsPage";
 
 import TenantsPage from "../pages/superadmin/TenantsPage";
 
+const SuperAdminDashboard = () => (
+  <section className="page">
+    <h1>SuperAdmin Dashboard</h1>
+    <p>Manage bookings, tickets, ticket types, and tenants.</p>
+  </section>
+);
+
 function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<Register />} />
 
       <Route
         path="/dashboard"

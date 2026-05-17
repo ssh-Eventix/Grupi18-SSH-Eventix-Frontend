@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useState } from "react";
 import api from "../api/axios";
 
@@ -10,6 +11,19 @@ export const AuthProvider = ({ children }) => {
 
   const isAuthenticated = !!token;
 
+  const persistTenantSlug = (value) => {
+    const nextTenantSlug = value?.trim();
+    setTenantSlug(nextTenantSlug || null);
+
+    if (nextTenantSlug) {
+      localStorage.setItem("tenantSlug", nextTenantSlug);
+    } else {
+      localStorage.removeItem("tenantSlug");
+    }
+
+    return nextTenantSlug;
+  };
+
   useEffect(() => {
     if (token) localStorage.setItem("token", token);
     else localStorage.removeItem("token");
@@ -21,7 +35,7 @@ export const AuthProvider = ({ children }) => {
   }, [tenantSlug]);
 
   const login = async ({ email, password, tenantSlug }) => {
-    setTenantSlug(tenantSlug);
+    persistTenantSlug(tenantSlug);
 
     const response = await api.post("/auth/login", {
       email,
@@ -32,6 +46,19 @@ export const AuthProvider = ({ children }) => {
 
     setToken(jwtToken);
     setUser(response.data.user || null);
+
+    return response.data;
+  };
+
+  const register = async ({ name, email, password, tenantSlug }) => {
+    const nextTenantSlug = persistTenantSlug(tenantSlug);
+
+    const response = await api.post("/auth/register", {
+      name,
+      email,
+      password,
+      tenantSlug: nextTenantSlug,
+    });
 
     return response.data;
   };
@@ -52,6 +79,7 @@ export const AuthProvider = ({ children }) => {
         user,
         isAuthenticated,
         login,
+        register,
         logout,
         setTenantSlug,
       }}
