@@ -1,6 +1,6 @@
 import api from "./api";
 
-const URL = "/VenueSection";
+const URL = "/VenueSections";
 
 export const venueSectionsService = {
   getAll: async () => {

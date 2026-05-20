@@ -1,24 +1,13 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useState } from "react";
 import api from "../api/axios";
-import { getUserFromToken } from "../utils/routeDestinations";
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem("token"));
   const [tenantSlug, setTenantSlug] = useState(localStorage.getItem("tenantSlug"));
-  const [user, setUser] = useState(() => {
-    const storedToken = localStorage.getItem("token");
-
-    if (!storedToken) return null;
-
-    try {
-      return getUserFromToken(storedToken);
-    } catch {
-      return null;
-    }
-  });
+  const [user, setUser] = useState(null);
 
   const isAuthenticated = !!token;
 
@@ -53,38 +42,23 @@ export const AuthProvider = ({ children }) => {
       password,
     });
 
-    const jwtToken = response.data.accessToken || response.data.token;
+    const jwtToken = response.data.token;
 
     setToken(jwtToken);
-    const nextUser = getUserFromToken(jwtToken, email);
+    setUser(response.data.user || null);
 
-    setUser(nextUser);
-
-    return { ...response.data, user: nextUser };
+    return response.data;
   };
 
-  const register = async ({ firstName, lastName, email, password, tenantSlug }) => {
+  const register = async ({ name, email, password, tenantSlug }) => {
     const nextTenantSlug = persistTenantSlug(tenantSlug);
 
     const response = await api.post("/auth/register", {
-      firstName,
-      lastName,
+      name,
       email,
       password,
-    }, {
-      headers: nextTenantSlug ? { "X-Tenant-Slug": nextTenantSlug } : undefined,
+      tenantSlug: nextTenantSlug,
     });
-
-    const jwtToken = response.data.accessToken || response.data.token;
-
-    if (jwtToken) {
-      setToken(jwtToken);
-      const nextUser = getUserFromToken(jwtToken, email);
-
-      setUser(nextUser);
-
-      return { ...response.data, user: nextUser };
-    }
 
     return response.data;
   };

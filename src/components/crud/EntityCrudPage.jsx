@@ -1,37 +1,18 @@
-import { useCallback, useEffect, useState } from "react";
-import { handleApiError } from "../../utils/apiErrorHandler";
+import { useEffect, useState } from "react";
 
-const formatValue = (value) => {
-  if (typeof value === "boolean") return value ? "Yes" : "No";
-  if (Array.isArray(value)) return `${value.length} items`;
-  if (value && typeof value === "object") return JSON.stringify(value);
-  return value ?? "";
-};
-
-export default function EntityCrudPage({ title, api, initialForm, fields, description, readonly = false }) {
+export default function EntityCrudPage({ title, api, initialForm, fields }) {
   const [items, setItems] = useState([]);
   const [form, setForm] = useState(initialForm);
   const [editingId, setEditingId] = useState(null);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setError("");
-
-    try {
-      const res = await api.getAll();
-      setItems(Array.isArray(res) ? res : res.data ?? []);
-    } catch (err) {
-      setError(handleApiError(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [api]);
+  const loadData = async () => {
+    const res = await api.getAll();
+    setItems(res.data);
+  };
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
+  }, []);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -44,21 +25,16 @@ export default function EntityCrudPage({ title, api, initialForm, fields, descri
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
 
-    try {
-      if (editingId) {
-        await api.update(editingId, form);
-      } else {
-        await api.create(form);
-      }
-
-      setForm(initialForm);
-      setEditingId(null);
-      loadData();
-    } catch (err) {
-      setError(handleApiError(err));
+    if (editingId) {
+      await api.update(editingId, form);
+    } else {
+      await api.create(form);
     }
+
+    setForm(initialForm);
+    setEditingId(null);
+    loadData();
   };
 
   const handleEdit = (item) => {
@@ -67,49 +43,20 @@ export default function EntityCrudPage({ title, api, initialForm, fields, descri
   };
 
   const handleDelete = async (id) => {
-    setError("");
-
-    try {
-      await api.delete(id);
-      loadData();
-    } catch (err) {
-      setError(handleApiError(err));
-    }
+    await api.delete(id);
+    loadData();
   };
 
   return (
-    <section className="page crud-page">
-      <div className="crud-header">
-        <div>
-          <h1>{title}</h1>
-          {description && <p>{description}</p>}
-        </div>
-        <button type="button" onClick={loadData}>Refresh</button>
-      </div>
+    <div>
+      <h2>{title}</h2>
 
-      {error && <div className="form-alert">{error}</div>}
-
-      {!readonly && (
-      <form className="dynamic-form" onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit}>
         {fields.map((field) => (
-          <div className="form-field" key={field.name}>
+          <div key={field.name}>
             <label>{field.label}</label>
 
-            {field.type === "textarea" ? (
-              <textarea
-                name={field.name}
-                onChange={handleChange}
-                value={form[field.name] ?? ""}
-              />
-            ) : field.type === "select" ? (
-              <select name={field.name} onChange={handleChange} value={form[field.name] ?? ""}>
-                {(field.options ?? []).map((option) => (
-                  <option key={option.value ?? option} value={option.value ?? option}>
-                    {option.label ?? option}
-                  </option>
-                ))}
-              </select>
-            ) : field.type === "checkbox" ? (
+            {field.type === "checkbox" ? (
               <input
                 type="checkbox"
                 name={field.name}
@@ -127,7 +74,7 @@ export default function EntityCrudPage({ title, api, initialForm, fields, descri
           </div>
         ))}
 
-        <button className="primary-button" type="submit">{editingId ? "Update" : "Create"}</button>
+        <button type="submit">{editingId ? "Update" : "Create"}</button>
         {editingId && (
           <button type="button" onClick={() => {
             setEditingId(null);
@@ -137,11 +84,8 @@ export default function EntityCrudPage({ title, api, initialForm, fields, descri
           </button>
         )}
       </form>
-      )}
 
-      <div className="table-panel">
-      {loading ? <p>Loading...</p> : (
-      <table>
+      <table border="1" cellPadding="8">
         <thead>
           <tr>
             {fields.map((field) => (
@@ -156,19 +100,19 @@ export default function EntityCrudPage({ title, api, initialForm, fields, descri
             <tr key={item.id}>
               {fields.map((field) => (
                 <td key={field.name}>
-                  {formatValue(item[field.name])}
+                  {typeof item[field.name] === "boolean"
+                    ? item[field.name] ? "Yes" : "No"
+                    : item[field.name]}
                 </td>
               ))}
               <td>
-                {!readonly && <button onClick={() => handleEdit(item)}>Edit</button>}
-                {!readonly && <button onClick={() => handleDelete(item.id)}>Delete</button>}
+                <button onClick={() => handleEdit(item)}>Edit</button>
+                <button onClick={() => handleDelete(item.id)}>Delete</button>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-      )}
-      </div>
-    </section>
+    </div>
   );
 }

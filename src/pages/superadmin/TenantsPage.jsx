@@ -1,11 +1,11 @@
 import EntityCrudPage from "../../components/crud/EntityCrudPage";
-import { tenantsService } from "../../services/tenantsService";
+import { tenantsApi } from "../../api/tenantsApi";
 
 export default function TenantsPage() {
   return (
     <EntityCrudPage
       title="Tenants"
-      api={tenantsService}
+      api={tenantsApi}
       initialForm={{
         name: "",
         slug: "",

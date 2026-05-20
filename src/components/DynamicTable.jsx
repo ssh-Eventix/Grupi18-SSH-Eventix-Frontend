@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import SearchBar from "./SearchBar.jsx";
 import TableSkeleton from "./TableSkeleton.jsx";
 
@@ -18,7 +18,7 @@ export default function DynamicTable({
 
   const hasActions = actions.onEdit || actions.onDelete || actions.onView;
 
-  const loadData = useCallback(async (searchValue = search) => {
+  const loadData = async (searchValue = search) => {
     setLoading(true);
 
     try {
@@ -33,11 +33,11 @@ export default function DynamicTable({
     } finally {
       setLoading(false);
     }
-  }, [fetchData, page, pageSize, search]);
+  };
 
   useEffect(() => {
     loadData();
-  }, [loadData, refreshKey]);
+  }, [page, pageSize, refreshKey]);
 
   const handleSearch = (e) => {
     e.preventDefault();
