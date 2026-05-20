@@ -176,3 +176,18 @@ export async function getBookings() {
   }
 }
 
+export async function createBooking({ userId, eventId, ticketTypeId, quantity }) {
+  const response = await api.post("/Booking", {
+    userId,
+    eventId,
+    bookingItems: [
+      {
+        ticketTypeId,
+        quantity,
+      },
+    ],
+  });
+
+  return response.data;
+}
+
