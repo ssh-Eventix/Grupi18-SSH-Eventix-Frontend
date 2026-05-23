@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   FaCalendarCheck,
   FaCalendarPlus,
@@ -14,10 +14,12 @@ import {
   FaPercent,
   FaQrcode,
   FaRegCalendarAlt,
+  FaSignOutAlt,
   FaStar,
   FaStore,
   FaUsers,
 } from "react-icons/fa";
+import { useAuth } from "../auth/AuthContext";
 
 const links = [
   { path: "/tenant", label: "Dashboard", icon: FaChartBar, end: true },
@@ -40,6 +42,14 @@ const links = [
 ];
 
 const TenantLayout = () => {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login", { replace: true });
+  };
+
   return (
     <div className="app-shell tenant-theme">
       <aside className="sidebar">
@@ -63,6 +73,11 @@ const TenantLayout = () => {
             );
           })}
         </nav>
+
+        <button className="logout-button" type="button" onClick={handleLogout}>
+          <FaSignOutAlt />
+          <span>Logout</span>
+        </button>
       </aside>
 
       <main className="workspace">

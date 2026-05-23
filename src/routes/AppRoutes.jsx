@@ -19,6 +19,7 @@ import {
 import LoginPage from "../pages/public/LoginPage";
 import Register from "../pages/public/Register";
 import SuperAdminDashboardPage from "../pages/superadmin/SuperAdminDashboardPage";
+import TenantEmailDomainsPage from "../pages/superadmin/TenantEmailDomainsPage";
 import TenantsPage from "../pages/superadmin/TenantsPage";
 import DashboardPage from "../pages/tenant/DashboardPage";
 import EventCategoriesPage from "../pages/tenant/EventCategoriesPage";
@@ -105,6 +106,7 @@ function AppRoutes() {
       <Route path="/superadmin" element={<ProtectedRoute><SuperAdminLayout /></ProtectedRoute>}>
         <Route index element={<SuperAdminDashboardPage />} />
         <Route path="tenants" element={<TenantsPage />} />
+        <Route path="tenant-domains" element={<TenantEmailDomainsPage />} />
         <Route path="events" element={<EventsPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="venues" element={<VenuesPage />} />
