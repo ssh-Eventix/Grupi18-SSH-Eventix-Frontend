@@ -12,6 +12,23 @@ const initialForm = {
 
 const roleOptions = ["Buyer", "Staff", "Admin"];
 
+const stripRolePrefix = (value) => {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/^(admin|staff)\./, "");
+};
+
+const domainForRole = (value, role) => {
+  const baseDomain = stripRolePrefix(value);
+
+  if (!baseDomain) return "";
+  if (role === "Admin") return `admin.${baseDomain}`;
+  if (role === "Staff") return `staff.${baseDomain}`;
+
+  return baseDomain;
+};
+
 const normalizeDomain = (value) => value.trim().toLowerCase();
 
 export default function TenantEmailDomainsPage() {
@@ -57,6 +74,15 @@ export default function TenantEmailDomainsPage() {
     setForm((current) => ({
       ...current,
       [name]: value,
+    }));
+    setError("");
+  };
+
+  const updateRole = (role) => {
+    setForm((current) => ({
+      ...current,
+      defaultRoleName: role,
+      domain: domainForRole(current.domain, role),
     }));
     setError("");
   };
@@ -165,7 +191,7 @@ export default function TenantEmailDomainsPage() {
           <select
             value={form.defaultRoleName}
             disabled={saving}
-            onChange={(event) => updateField("defaultRoleName", event.target.value)}
+            onChange={(event) => updateRole(event.target.value)}
           >
             {roleOptions.map((role) => (
               <option key={role} value={role}>

@@ -21,6 +21,7 @@ const links = [
   { path: "/superadmin", label: "Overview", icon: FaChartPie, end: true },
   { path: "/superadmin/tenants", label: "Tenants", icon: FaStore },
   { path: "/superadmin/tenant-domains", label: "Tenant Domains", icon: FaEnvelope },
+  { path: "/superadmin/tenant-admins", label: "Tenant Admins", icon: FaUsers },
   { path: "/superadmin/events", label: "Events", icon: FaCalendarAlt },
   { path: "/superadmin/users", label: "Users", icon: FaUsers },
   { path: "/superadmin/venues", label: "Venues", icon: FaMapMarkerAlt },
