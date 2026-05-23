@@ -15,6 +15,9 @@ const normalizeBooking = (booking) => {
     ...booking,
     tickets,
     ticketCount: tickets.length,
+    quantity: booking.quantity ?? tickets.length,
+    ticketCode: booking.ticketCode ?? tickets[0]?.ticketCode ?? "",
+    source: "Backend",
   };
 };
 

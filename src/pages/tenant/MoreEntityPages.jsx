@@ -1,6 +1,12 @@
+import { useEffect, useMemo, useState } from "react";
 import EntityCrudPage from "../../components/crud/EntityCrudPage";
 import { createCrudService, localCrudService } from "../../services/crudService";
+import { eventsService } from "../../services/eventsService";
+import { eventSectionsService } from "../../services/eventSectionsService";
 import { mergedCrudService } from "../../services/purchaseRecordsService";
+import { ticketService } from "../../services/ticketService";
+import { ticketTypeService } from "../../services/ticketTypeService";
+import { handleApiError } from "../../utils/apiErrorHandler";
 
 const uuid = "00000000-0000-0000-0000-000000000000";
 
@@ -11,33 +17,338 @@ const checkbox = (name, label = name) => ({ name, label, type: "checkbox" });
 const area = (name, label = name) => ({ name, label, type: "textarea" });
 
 export function TicketTypesPage() {
+  const [events, setEvents] = useState([]);
+  const [eventSections, setEventSections] = useState([]);
+  const [ticketTypes, setTicketTypes] = useState([]);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    eventId: "",
+    eventSectionId: "",
+    name: "",
+    price: "",
+    quantityAvailable: "",
+    saleStartDate: "",
+    saleEndDate: "",
+  });
+
+  const selectedEventSections = useMemo(() => {
+    return eventSections.filter((section) => String(section.eventId) === String(form.eventId));
+  }, [eventSections, form.eventId]);
+
+  const sectionsById = useMemo(() => {
+    return eventSections.reduce((map, section) => {
+      map[String(section.id)] = section;
+      return map;
+    }, {});
+  }, [eventSections]);
+
+  useEffect(() => {
+    async function loadData() {
+      setLoading(true);
+      setError("");
+      setMessage("");
+
+      try {
+        const [eventsData, sectionsData] = await Promise.all([
+          eventsService.getAll(),
+          eventSectionsService.getAll(),
+        ]);
+
+        const nextEvents = Array.isArray(eventsData) ? eventsData : eventsData?.data ?? [];
+        const nextSections = Array.isArray(sectionsData) ? sectionsData : sectionsData?.data ?? [];
+
+        setEvents(nextEvents);
+        setEventSections(nextSections);
+
+        if (nextEvents.length > 0) {
+          const firstEventId = nextEvents[0].id;
+          setForm((prev) => ({
+            ...prev,
+            eventId: prev.eventId || firstEventId,
+          }));
+
+          const data = await ticketTypeService.getByEventId(firstEventId);
+          setTicketTypes(data);
+        }
+      } catch (err) {
+        setError(handleApiError(err));
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadData();
+  }, []);
+
+  const updateField = (name, value) => {
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+    setError("");
+    setMessage("");
+  };
+
+  const handleEventChange = async (eventId) => {
+    setForm((prev) => ({
+      ...prev,
+      eventId,
+      eventSectionId: "",
+    }));
+    setError("");
+    setMessage("");
+
+    if (!eventId) {
+      setTicketTypes([]);
+      return;
+    }
+
+    try {
+      const data = await ticketTypeService.getByEventId(eventId);
+      setTicketTypes(data);
+    } catch (err) {
+      setError(handleApiError(err));
+    }
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+
+    if (!form.eventId || !form.eventSectionId) {
+      setError("Select event and event section.");
+      return;
+    }
+
+    if (Number(form.price) < 0) {
+      setError("Price cannot be negative.");
+      return;
+    }
+
+    if (Number(form.quantityAvailable) <= 0) {
+      setError("Quantity must be greater than zero.");
+      return;
+    }
+
+    if (new Date(form.saleEndDate) <= new Date(form.saleStartDate)) {
+      setError("Sale end must be after sale start.");
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      await ticketTypeService.create(form);
+      const updated = await ticketTypeService.getByEventId(form.eventId);
+
+      setTicketTypes(updated);
+      setForm((prev) => ({
+        ...prev,
+        name: "",
+        price: "",
+        quantityAvailable: "",
+        saleStartDate: "",
+        saleEndDate: "",
+      }));
+      setMessage("Ticket type was created.");
+    } catch (err) {
+      setError(handleApiError(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const formatDate = (value) => {
+    return value ? new Date(value).toLocaleString() : "";
+  };
+
+  const getSaleStatus = (type) => {
+    const now = new Date();
+    const start = new Date(type.saleStartDate);
+    const end = new Date(type.saleEndDate);
+
+    if (now < start) return "Scheduled";
+    if (now > end) return "Closed";
+    if (type.quantityAvailable <= 0) return "Sold out";
+    return "Active";
+  };
+
+  const getSectionLabel = (ticketType) => {
+    const section = sectionsById[String(ticketType.eventSectionId)];
+    if (!section) return ticketType.eventSectionId || "";
+    return section.code ? `${section.name} (${section.code})` : section.name;
+  };
+
   return (
-    <EntityCrudPage
-      title="Ticket Types"
-      description="Manage pricing, availability, and sales windows for event tickets."
-      api={localCrudService("ticketTypes", [
-        { id: "tt-regular", eventId: uuid, name: "Regular", price: 25, quantityAvailable: 200, saleStartDate: "", saleEndDate: "" },
-      ])}
-      initialForm={{ eventId: uuid, name: "", price: 0, quantityAvailable: 0, saleStartDate: "", saleEndDate: "" }}
-      fields={[
-        text("eventId", "Event ID"),
-        text("name", "Name"),
-        number("price", "Price"),
-        number("quantityAvailable", "Quantity"),
-        date("saleStartDate", "Sale Start"),
-        date("saleEndDate", "Sale End"),
-      ]}
-    />
+    <section className="page crud-page">
+      <div className="crud-header">
+        <div>
+          <h1>Ticket Types</h1>
+          <p>Manage pricing, stock, and sale windows by event section.</p>
+        </div>
+        <button type="button" onClick={() => handleEventChange(form.eventId)} disabled={!form.eventId || loading}>
+          Refresh
+        </button>
+      </div>
+
+      {error && <div className="form-alert">{error}</div>}
+      {message && <div className="form-alert success">{message}</div>}
+
+      <form className="dynamic-form" onSubmit={handleSubmit}>
+        <div className="form-field">
+          <label>Event</label>
+          <select
+            value={form.eventId}
+            disabled={saving}
+            onChange={(event) => handleEventChange(event.target.value)}
+            required
+          >
+            <option value="">Select event</option>
+            {events.map((event) => (
+              <option key={event.id} value={event.id}>
+                {event.title || event.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="form-field">
+          <label>Event Section</label>
+          <select
+            value={form.eventSectionId}
+            disabled={saving || !form.eventId}
+            onChange={(event) => updateField("eventSectionId", event.target.value)}
+            required
+          >
+            <option value="">
+              {form.eventId ? "Select section" : "Select event first"}
+            </option>
+            {selectedEventSections.map((section) => (
+              <option key={section.id} value={section.id}>
+                {section.code ? `${section.name} (${section.code})` : section.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="form-field">
+          <label>Name</label>
+          <input
+            value={form.name}
+            disabled={saving}
+            placeholder="VIP"
+            onChange={(event) => updateField("name", event.target.value)}
+            required
+          />
+        </div>
+
+        <div className="form-field">
+          <label>Price</label>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={form.price}
+            disabled={saving}
+            placeholder="75"
+            onChange={(event) => updateField("price", event.target.value)}
+            required
+          />
+        </div>
+
+        <div className="form-field">
+          <label>Quantity Available</label>
+          <input
+            type="number"
+            min="0"
+            value={form.quantityAvailable}
+            disabled={saving}
+            placeholder="100"
+            onChange={(event) => updateField("quantityAvailable", event.target.value)}
+            required
+          />
+        </div>
+
+        <div className="form-field">
+          <label>Sale Start</label>
+          <input
+            type="datetime-local"
+            value={form.saleStartDate}
+            disabled={saving}
+            onChange={(event) => updateField("saleStartDate", event.target.value)}
+            required
+          />
+        </div>
+
+        <div className="form-field">
+          <label>Sale End</label>
+          <input
+            type="datetime-local"
+            value={form.saleEndDate}
+            disabled={saving}
+            onChange={(event) => updateField("saleEndDate", event.target.value)}
+            required
+          />
+        </div>
+
+        <button className="primary-button" type="submit" disabled={saving}>
+          {saving ? "Creating..." : "Create Ticket Type"}
+        </button>
+      </form>
+
+      <div className="table-panel">
+        {loading ? (
+          <p>Loading...</p>
+        ) : ticketTypes.length === 0 ? (
+          <p className="status-text">No ticket types found for the selected event.</p>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Section</th>
+                <th>Name</th>
+                <th>Price</th>
+                <th>Available</th>
+                <th>Sold</th>
+                <th>Status</th>
+                <th>Sale Start</th>
+                <th>Sale End</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {ticketTypes.map((type) => (
+                <tr key={type.id}>
+                  <td>{getSectionLabel(type)}</td>
+                  <td>{type.name}</td>
+                  <td>{Number(type.price || 0).toFixed(2)} EUR</td>
+                  <td>{type.quantityAvailable}</td>
+                  <td>{type.soldQuantity}</td>
+                  <td>{getSaleStatus(type)}</td>
+                  <td>{formatDate(type.saleStartDate)}</td>
+                  <td>{formatDate(type.saleEndDate)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </section>
   );
 }
 
 export function BookingsPage() {
   return (
     <EntityCrudPage
-      title="Bookings"
-      description="View and create ticket bookings. Booking items represent the tickets inside each booking."
+      title="Orders"
+      description="Bookings created from buyer checkout."
+      readonly
       api={mergedCrudService("/Booking", "bookings")}
-      initialForm={{ userId: uuid, eventId: uuid, items: [{ ticketTypeId: uuid, quantity: 1 }] }}
+      initialForm={{}}
       fields={[
         text("referenceNumber", "Reference"),
         text("eventTitle", "Event"),
@@ -148,23 +459,267 @@ export function SpeakersPage() {
 }
 
 export function CheckInsPage() {
+  const [ticketCode, setTicketCode] = useState("");
+  const [ticket, setTicket] = useState(null);
+  const [tickets, setTickets] = useState([]);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [loadingTickets, setLoadingTickets] = useState(false);
+  const [checkingIn, setCheckingIn] = useState(false);
+
+  const statusLabels = {
+    0: "Active",
+    1: "Used",
+    2: "Cancelled",
+    3: "Refunded",
+  };
+
+  const cleanTicketCode = () => ticketCode.trim();
+
+  const loadTickets = async () => {
+    setLoadingTickets(true);
+    setError("");
+
+    try {
+      const result = await ticketService.getAll();
+      setTickets(result);
+    } catch (err) {
+      setError(handleApiError(err));
+    } finally {
+      setLoadingTickets(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTickets();
+  }, []);
+
+  const loadTicket = async (code = cleanTicketCode()) => {
+    if (!code) {
+      setError("Enter a ticket code.");
+      return null;
+    }
+
+    setLoading(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const result = await ticketService.getByCode(code);
+      setTicket(result);
+      return result;
+    } catch (err) {
+      setTicket(null);
+      setError(handleApiError(err));
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLookup = async (event) => {
+    event.preventDefault();
+    await loadTicket();
+  };
+
+  const handleCheckIn = async () => {
+    const code = cleanTicketCode();
+
+    if (!code) {
+      setError("Enter a ticket code.");
+      return;
+    }
+
+    setCheckingIn(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const response = await ticketService.checkIn(code);
+      const updatedTicket = await ticketService.getByCode(code);
+
+      setTicket(updatedTicket);
+      setTickets((prev) =>
+        prev.map((item) =>
+          item.ticketCode === updatedTicket.ticketCode
+            ? { ...item, ...updatedTicket }
+            : item
+        )
+      );
+      setMessage(response?.message || "Ticket successfully checked in.");
+    } catch (err) {
+      setError(handleApiError(err));
+    } finally {
+      setCheckingIn(false);
+    }
+  };
+
+  const formatDate = (value) => {
+    return value ? new Date(value).toLocaleString() : "";
+  };
+
+  const statusText = ticket ? statusLabels[ticket.status] ?? String(ticket.status) : "";
+  const isUsed = ticket?.status === 1;
+
+  const checkInTicket = async (code) => {
+    setTicketCode(code);
+    setTicket(null);
+    setCheckingIn(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const response = await ticketService.checkIn(code);
+      const updatedTicket = await ticketService.getByCode(code);
+
+      setTicket(updatedTicket);
+      setTickets((prev) =>
+        prev.map((item) =>
+          item.ticketCode === updatedTicket.ticketCode
+            ? { ...item, ...updatedTicket }
+            : item
+        )
+      );
+      setMessage(response?.message || "Ticket successfully checked in.");
+    } catch (err) {
+      setError(handleApiError(err));
+    } finally {
+      setCheckingIn(false);
+    }
+  };
+
+  const findTicketFromList = async (code) => {
+    setTicketCode(code);
+    await loadTicket(code);
+  };
+
   return (
-    <EntityCrudPage
-      title="Check-ins"
-      description="Tickets bought by buyers appear here ready for QR scan at the entrance."
-      api={localCrudService("checkIns")}
-      initialForm={{ ticketId: "", ticketCode: "", eventTitle: "", buyerEmail: "", checkedInByUserId: "", notes: "", checkInTime: "Not checked in", status: "Ready" }}
-      fields={[
-        text("ticketId", "Ticket ID"),
-        text("ticketCode", "Ticket Code"),
-        text("eventTitle", "Event"),
-        text("buyerEmail", "Buyer Email"),
-        text("status", "Status"),
-        text("checkedInByUserId", "Checked In By"),
-        area("notes", "Notes"),
-        text("checkInTime", "Check-in Time"),
-      ]}
-    />
+    <section className="page crud-page">
+      <div className="crud-header">
+        <div>
+          <h1>Check-in</h1>
+          <p>Validate tickets and mark attendees as checked in.</p>
+        </div>
+        <button type="button" onClick={loadTickets} disabled={loadingTickets}>
+          {loadingTickets ? "Refreshing..." : "Refresh"}
+        </button>
+      </div>
+
+      {error && <div className="form-alert">{error}</div>}
+      {message && <div className="form-alert success">{message}</div>}
+
+      <form className="dynamic-form" onSubmit={handleLookup}>
+        <div className="form-field">
+          <label>Ticket Code</label>
+          <input
+            value={ticketCode}
+            placeholder="TKT-ABC12345"
+            onChange={(event) => {
+              setTicketCode(event.target.value.toUpperCase());
+              setError("");
+              setMessage("");
+            }}
+            required
+          />
+        </div>
+
+        <button className="primary-button" type="submit" disabled={loading}>
+          {loading ? "Checking..." : "Find Ticket"}
+        </button>
+      </form>
+
+      <div className="table-panel">
+        {!ticket ? (
+          <p className="status-text">Enter a ticket code to check its status.</p>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Ticket ID</th>
+                <th>Ticket Code</th>
+                <th>Status</th>
+                <th>Issued At</th>
+                <th>Used At</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              <tr>
+                <td>{ticket.id}</td>
+                <td>{ticket.ticketCode}</td>
+                <td>{statusText}</td>
+                <td>{formatDate(ticket.issuedAt)}</td>
+                <td>{ticket.usedAt ? formatDate(ticket.usedAt) : "Not checked in"}</td>
+                <td>
+                  <button
+                    type="button"
+                    disabled={checkingIn || isUsed}
+                    onClick={handleCheckIn}
+                  >
+                    {isUsed ? "Checked in" : checkingIn ? "Checking in..." : "Check in"}
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div className="table-panel">
+        <h2>All Tickets</h2>
+        {loadingTickets ? (
+          <p>Loading tickets...</p>
+        ) : tickets.length === 0 ? (
+          <p className="status-text">No tickets found yet.</p>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Ticket Code</th>
+                <th>Event</th>
+                <th>Buyer Email</th>
+                <th>Status</th>
+                <th>Issued At</th>
+                <th>Used At</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {tickets.map((item) => {
+                const itemStatus = statusLabels[item.status] ?? String(item.status);
+                const itemUsed = item.status === 1;
+
+                return (
+                  <tr key={item.id}>
+                    <td>{item.ticketCode}</td>
+                    <td>{item.eventTitle || ""}</td>
+                    <td>{item.buyerEmail || ""}</td>
+                    <td>{itemStatus}</td>
+                    <td>{formatDate(item.issuedAt)}</td>
+                    <td>{item.usedAt ? formatDate(item.usedAt) : "Not checked in"}</td>
+                    <td>
+                      <button type="button" onClick={() => findTicketFromList(item.ticketCode)}>
+                        View
+                      </button>
+                      <button
+                        type="button"
+                        disabled={checkingIn || itemUsed}
+                        onClick={() => checkInTicket(item.ticketCode)}
+                      >
+                        {itemUsed ? "Checked in" : "Check in"}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </section>
   );
 }
 

@@ -6,9 +6,16 @@ const EVENTS_URL = "/Events";
 const normalizeTicketType = (ticketType, eventId) => ({
   ...ticketType,
   eventId: ticketType.eventId ?? eventId,
+  eventSectionId: ticketType.eventSectionId ?? "",
   price: Number(ticketType.price ?? 0),
   quantityAvailable: Number(ticketType.quantityAvailable ?? 0),
+  soldQuantity: Number(ticketType.soldQuantity ?? 0),
 });
+
+const toUtcIso = (value) => {
+  if (!value) return value;
+  return new Date(value).toISOString();
+};
 
 const mapCreateTicketTypeRequest = (data) => ({
   eventId: data.eventId,
@@ -16,8 +23,8 @@ const mapCreateTicketTypeRequest = (data) => ({
   name: data.name,
   price: Number(data.price),
   quantityAvailable: Number(data.quantityAvailable),
-  saleStartDate: data.saleStartDate,
-  saleEndDate: data.saleEndDate,
+  saleStartDate: toUtcIso(data.saleStartDate),
+  saleEndDate: toUtcIso(data.saleEndDate),
 });
 
 const getEventId = (event) => event.backendId ?? event.id;

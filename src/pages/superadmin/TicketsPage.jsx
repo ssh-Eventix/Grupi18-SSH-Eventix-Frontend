@@ -1,4 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { eventsService } from "../../services/eventsService.js";
+import { eventSectionsService } from "../../services/eventSectionsService.js";
+import { ticketTypeService } from "../../services/ticketTypeService.js";
 import DynamicForm from "../../components/DynamicForm.jsx";
 import DynamicTable from "../../components/DynamicTable.jsx";
 import { getTickets } from "../../services/ticketService.js";
@@ -6,6 +9,74 @@ import { getTickets } from "../../services/ticketService.js";
 export default function TicketsPage() {
   const [tickets, setTickets] = useState([]);
   const [editingTicket, setEditingTicket] = useState(null);
+  const [events, setEvents] = useState([]);
+  const [eventSections, setEventSections] = useState([]);
+  const [ticketTypes, setTicketTypes] = useState([]);
+  const [error, setError] = useState("");
+  
+  const [form, setForm] = useState({
+    eventId: "",
+    eventSectionId: "",
+    name: "",
+    price: "",
+    quantityAvailable: "",
+    saleStartDate: "",
+    saleEndDate: "",
+  });
+
+  const selectedEventSections = useMemo(() => {
+    return eventSections.filter((section) => section.eventId === form.eventId);
+  }, [eventSections, form.eventId]);
+
+  const handleEventChange = (eventId) => {
+    setForm((prev) => ({
+      ...prev,
+      eventId,
+      eventSectionId: "",
+    }));
+
+    ticketTypeService
+      .getByEventId(eventId)
+      .then(setTicketTypes)
+      .catch((err) => setError(handleApiError(err)));
+  };
+
+  const updateField = (name, value) => {
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+
+    setError("");
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+
+    if (!form.eventId || !form.eventSectionId) {
+      setError("Select event and event section.");
+      return;
+    }
+
+    try {
+      await ticketTypeService.create(form);
+
+      const updated = await ticketTypeService.getByEventId(form.eventId);
+      setTicketTypes(updated);
+
+      setForm((prev) => ({
+        ...prev,
+        name: "",
+        price: "",
+        quantityAvailable: "",
+        saleStartDate: "",
+        saleEndDate: "",
+      }));
+    } catch (err) {
+      setError(handleApiError(err));
+    }
+  };
 
   const columns = [
     { key: "ticketCode", label: "Ticket Code" },
@@ -30,7 +101,21 @@ export default function TicketsPage() {
   ];
 
   useEffect(() => {
-    getTickets().then(setTickets);
+    async function loadData() {
+      try {
+       const [eventsData, sectionsData] = await Promise.all([
+        eventsService.getAll(),
+        eventSectionsService.getAll(),
+      ]);
+
+      setEvents(eventsData);
+      setEventSections(sectionsData);
+    } catch (err) {
+      setError(handleApiError(err));
+    }
+  }
+
+    loadData();
   }, []);
 
   const handleSubmit = (values) => {

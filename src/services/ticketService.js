@@ -6,6 +6,7 @@ const TICKET_URL = "/Ticket";
 const normalizeTicket = (ticket) => ({
   ...ticket,
   qrCode: ticket.qrCode ?? ticket.qRCode ?? ticket.QRCode ?? "",
+  status: Number(ticket.status ?? 0),
 });
 
 export const ticketService = {
@@ -17,6 +18,8 @@ export const ticketService = {
         normalizeTicket({
           ...ticket,
           bookingId: booking.id,
+          eventTitle: booking.eventTitle,
+          buyerEmail: booking.buyerEmail,
           referenceNumber: booking.referenceNumber,
           bookingStatus: booking.status,
         })
