@@ -46,12 +46,16 @@ export const AuthProvider = ({ children }) => {
   }, [tenantSlug]);
 
   const login = async ({ email, password, tenantSlug }) => {
-    persistTenantSlug(tenantSlug);
+    const nextTenantSlug = persistTenantSlug(tenantSlug);
 
     const response = await api.post("/auth/login", {
       email,
       password,
-    });
+    },
+    {
+      header: nextTenantSlug ? {"X-Tenant-Slug": nextTenantSlug} : undefined,
+    }
+  );
 
     const jwtToken = response.data.accessToken || response.data.token;
 

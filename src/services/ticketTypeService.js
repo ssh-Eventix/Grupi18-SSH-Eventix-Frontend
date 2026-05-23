@@ -1,55 +1,72 @@
 import api from "../api/axios";
 
-const fallbackTicketTypes = [
-  {
-    id: "37d5d940-2c7a-4ac1-8562-200000000001",
-    name: "Early Bird",
-    price: 20,
-    quantityAvailable: 150,
-    saleStartDate: "2026-04-01T00:00:00Z",
-    saleEndDate: "2026-04-30T23:59:59Z"
+const TICKET_TYPE_URL = "/TicketType";
+const EVENTS_URL = "/Events";
+
+const normalizeTicketType = (ticketType, eventId) => ({
+  ...ticketType,
+  eventId: ticketType.eventId ?? eventId,
+  price: Number(ticketType.price ?? 0),
+  quantityAvailable: Number(ticketType.quantityAvailable ?? 0),
+});
+
+const mapCreateTicketTypeRequest = (data) => ({
+  eventId: data.eventId,
+  eventSectionId: data.eventSectionId,
+  name: data.name,
+  price: Number(data.price),
+  quantityAvailable: Number(data.quantityAvailable),
+  saleStartDate: data.saleStartDate,
+  saleEndDate: data.saleEndDate,
+});
+
+const getEventId = (event) => event.backendId ?? event.id;
+
+export const ticketTypeService = {
+  getByEventId: async (eventId) => {
+    const response = await api.get(`${TICKET_TYPE_URL}/event/${eventId}`);
+    return response.data.map((ticketType) => normalizeTicketType(ticketType, eventId));
   },
-  {
-    id: "37d5d940-2c7a-4ac1-8562-200000000002",
-    name: "Regular",
-    price: 35,
-    quantityAvailable: 420,
-    saleStartDate: "2026-05-01T00:00:00Z",
-    saleEndDate: "2026-06-15T23:59:59Z"
+
+  getAvailableByEventId: async (eventId) => {
+    const response = await api.get(`${TICKET_TYPE_URL}/event/${eventId}/available`);
+    return response.data.map((ticketType) => normalizeTicketType(ticketType, eventId));
   },
-  {
-    id: "37d5d940-2c7a-4ac1-8562-200000000003",
-    name: "VIP",
-    price: 75,
-    quantityAvailable: 80,
-    saleStartDate: "2026-05-01T00:00:00Z",
-    saleEndDate: "2026-06-15T23:59:59Z"
+
+  getById: async (id) => {
+    const response = await api.get(`${TICKET_TYPE_URL}/${id}`);
+    return normalizeTicketType(response.data);
   },
-  {
-    id: "37d5d940-2c7a-4ac1-8562-200000000004",
-    name: "Backstage",
-    price: 140,
-    quantityAvailable: 20,
-    saleStartDate: "2026-05-10T00:00:00Z",
-    saleEndDate: "2026-06-10T23:59:59Z"
-  }
-];
 
-export async function getTicketTypes(eventId) {
-  if (!eventId) {
-    return fallbackTicketTypes;
-  }
+  getAll: async () => {
+    const eventsResponse = await api.get(EVENTS_URL);
+    const events = Array.isArray(eventsResponse.data) ? eventsResponse.data : eventsResponse.data?.data ?? [];
 
-  try {
-    const response = await api.get(`/TicketType/event/${eventId}`);
+    const results = await Promise.allSettled(
+      events
+        .map(getEventId)
+        .filter(Boolean)
+        .map((eventId) => ticketTypeService.getByEventId(eventId))
+    );
 
-    if (Array.isArray(response.data) && response.data.length > 0) {
-      return response.data;
-    }
+    return results
+      .filter((result) => result.status === "fulfilled")
+      .flatMap((result) => result.value);
+  },
 
-    return fallbackTicketTypes;
-  } catch (error) {
-    console.warn("Using fallback ticket types because the API is not ready.", error);
-    return fallbackTicketTypes;
-  }
-}
+  create: async (data) => {
+    const response = await api.post(TICKET_TYPE_URL, mapCreateTicketTypeRequest(data));
+    return normalizeTicketType(response.data, data.eventId);
+  },
+};
+
+export const getTicketTypes = (eventId) =>
+  eventId ? ticketTypeService.getByEventId(eventId) : ticketTypeService.getAll();
+
+export const getAvailableTicketTypes = (eventId) => ticketTypeService.getAvailableByEventId(eventId);
+
+export const getTicketTypeById = (id) => ticketTypeService.getById(id);
+
+export const createTicketType = (data) => ticketTypeService.create(data);
+
+export default ticketTypeService;

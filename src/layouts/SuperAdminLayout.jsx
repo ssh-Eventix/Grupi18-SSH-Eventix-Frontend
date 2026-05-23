@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   FaCalendarAlt,
   FaChartPie,
@@ -6,17 +6,21 @@ import {
   FaClipboardList,
   FaCog,
   FaCreditCard,
+  FaEnvelope,
   FaFileAlt,
   FaListAlt,
   FaMapMarkerAlt,
   FaShieldAlt,
+  FaSignOutAlt,
   FaStore,
   FaUsers,
 } from "react-icons/fa";
+import { useAuth } from "../auth/AuthContext";
 
 const links = [
   { path: "/superadmin", label: "Overview", icon: FaChartPie, end: true },
   { path: "/superadmin/tenants", label: "Tenants", icon: FaStore },
+  { path: "/superadmin/tenant-domains", label: "Tenant Domains", icon: FaEnvelope },
   { path: "/superadmin/events", label: "Events", icon: FaCalendarAlt },
   { path: "/superadmin/users", label: "Users", icon: FaUsers },
   { path: "/superadmin/venues", label: "Venues", icon: FaMapMarkerAlt },
@@ -31,6 +35,14 @@ const links = [
 ];
 
 const SuperAdminLayout = () => {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login", { replace: true });
+  };
+
   return (
     <div className="app-shell admin-theme">
       <aside className="sidebar">
@@ -50,6 +62,11 @@ const SuperAdminLayout = () => {
             );
           })}
         </nav>
+
+        <button className="logout-button" type="button" onClick={handleLogout}>
+          <FaSignOutAlt />
+          <span>Logout</span>
+        </button>
       </aside>
 
       <main className="workspace">
