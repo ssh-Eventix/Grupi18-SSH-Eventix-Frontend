@@ -45,6 +45,7 @@ import {
 } from "../pages/tenant/MoreEntityPages";
 import VenueSectionsPage from "../pages/tenant/VenueSectionsPage";
 import VenuesPage from "../pages/tenant/VenuesPage";
+import TenantAdminsPage from "../pages/superadmin/TenantAdminsPage";
 
 const StartRedirect = () => {
   return <Navigate to={startupPathFromToken()} replace />;
@@ -107,6 +108,7 @@ function AppRoutes() {
         <Route index element={<SuperAdminDashboardPage />} />
         <Route path="tenants" element={<TenantsPage />} />
         <Route path="tenant-domains" element={<TenantEmailDomainsPage />} />
+        <Route path="tenant-admins" element={<TenantAdminsPage />} />
         <Route path="events" element={<EventsPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="venues" element={<VenuesPage />} />
