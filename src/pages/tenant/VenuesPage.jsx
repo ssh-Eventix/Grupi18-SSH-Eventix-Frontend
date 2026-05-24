@@ -1,11 +1,11 @@
 import EntityCrudPage from "../../components/crud/EntityCrudPage";
-import { venuesApi } from "../../api/venuesApi";
+import { venuesService } from "../../services/venuesService";
 
 export default function VenuesPage() {
   return (
     <EntityCrudPage
       title="Venues"
-      api={venuesApi}
+      api={venuesService}
       initialForm={{
         name: "",
         code: "",

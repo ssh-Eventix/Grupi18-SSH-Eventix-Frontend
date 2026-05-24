@@ -1,54 +1,76 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import {
+  FaChartBar,
+  FaClipboardList,
+  FaCog,
+  FaCreditCard,
+  FaDoorOpen,
+  FaQrcode,
+  FaRegCalendarAlt,
+  FaSignOutAlt,
+  FaStar,
+  FaStore,
+  FaUsers,
+} from "react-icons/fa";
 import { useAuth } from "../auth/AuthContext";
-import { ROLES } from "../utils/roles";
+
+const links = [
+  { path: "/tenant", label: "Overview", icon: FaChartBar, end: true },
+  { path: "/tenant/events", label: "Events", icon: FaRegCalendarAlt },
+  { path: "/tenant/tickets", label: "Tickets", icon: FaCreditCard },
+  { path: "/tenant/orders", label: "Orders", icon: FaClipboardList },
+  { path: "/tenant/check-in", label: "Check-in", icon: FaQrcode },
+  { path: "/tenant/attendees", label: "Attendees", icon: FaUsers },
+  { path: "/tenant/staff", label: "Staff", icon: FaUsers },
+  { path: "/tenant/reviews", label: "Reviews", icon: FaStar },
+  { path: "/tenant/reports", label: "Reports", icon: FaChartBar },
+  { path: "/tenant/settings", label: "Settings", icon: FaCog },
+];
 
 const TenantLayout = () => {
-  const { user } = useAuth();
+  const { logout } = useAuth();
+  const navigate = useNavigate();
 
-  const isStaff = user?.role === ROLES.STAFF;
-
-  const tenantAdminLinks = [
-    { path: "/tenant", label: "Dashboard" },
-    { path: "/tenant/events", label: "Events" },
-    { path: "/tenant/create-event", label: "Create Event" },
-    { path: "/tenant/venues", label: "Venues" },
-    { path: "/tenant/tickets", label: "Tickets" },
-    { path: "/tenant/orders", label: "Orders" },
-    { path: "/tenant/attendees", label: "Attendees" },
-    { path: "/tenant/check-in", label: "Check-In" },
-    { path: "/tenant/reports", label: "Reports" },
-    { path: "/tenant/settings", label: "Settings" },
-  ];
-
-  const staffLinks = [
-    { path: "/staff", label: "Dashboard" },
-    { path: "/staff/events", label: "Assigned Events" },
-    { path: "/staff/attendees", label: "Attendees" },
-    { path: "/staff/check-in", label: "Check-In" },
-  ];
-
-  const links = isStaff ? staffLinks : tenantAdminLinks;
+  const handleLogout = () => {
+    logout();
+    navigate("/login", { replace: true });
+  };
 
   return (
-    <div className="layout">
+    <div className="app-shell tenant-theme">
       <aside className="sidebar">
-        <h2>Eventix</h2>
-        <p>{isStaff ? "Staff Panel" : "Tenant Admin Panel"}</p>
+        <div className="brand">
+          <FaStore />
+          <span>EventHub</span>
+        </div>
+        <button className="org-switch" type="button">
+          My Organization
+          <FaDoorOpen />
+        </button>
 
-        <nav>
-          {links.map((link) => (
-            <NavLink key={link.path} to={link.path} end>
-              {link.label}
-            </NavLink>
-          ))}
+        <nav className="side-nav" aria-label="Tenant navigation">
+          {links.map((link) => {
+            const Icon = link.icon;
+            return (
+              <NavLink key={link.path} to={link.path} end={link.end}>
+                <Icon />
+                <span>{link.label}</span>
+              </NavLink>
+            );
+          })}
         </nav>
+
+        <button className="logout-button" type="button" onClick={handleLogout}>
+          <FaSignOutAlt />
+          <span>Logout</span>
+        </button>
       </aside>
 
-      <main className="content">
-        <header className="topbar">
-          <h1>{isStaff ? "Staff Dashboard" : "Tenant Dashboard"}</h1>
-        </header>
-
+      <main className="workspace">
+        <div className="role-ribbon tenant-ribbon">
+          <FaUsers />
+          <span>TENANT (Event Organizer)</span>
+        </div>
         <Outlet />
       </main>
     </div>
