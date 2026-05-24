@@ -1,9 +1,11 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import RoleRoute from "../routes/RoleRoute";
+import ImpersonatePage from "../pages/superadmin/ImpersonatePage";
 import BuyerLayout from "../layouts/BuyerLayout";
 import SuperAdminLayout from "../layouts/SuperAdminLayout";
 import TenantLayout from "../layouts/TenantLayout";
 import ProtectedRoute from "../auth/ProtectedRoute";
+import SuperAdminReviewsPage from "../pages/superadmin/SuperAdminReviewsPage";
 import { startupPathFromToken } from "../utils/routeDestinations";
 
 import HomePage from "../pages/buyer/HomePage";
@@ -107,17 +109,7 @@ function AppRoutes() {
           <Route path="tenants" element={<TenantsPage />} />
           <Route path="tenant-domains" element={<TenantEmailDomainsPage />} />
           <Route path="tenant-admins" element={<TenantAdminsPage />} />
-          <Route path="events" element={<EventsPage />} />
-          <Route path="users" element={<UsersPage />} />
-          <Route path="venues" element={<VenuesPage />} />
-          <Route path="tickets" element={<TicketTypesPage />} />
-          <Route path="orders" element={<BookingsPage />} />
-          <Route path="reports" element={<AuditLogsPage />} />
-          <Route path="analytics" element={<AIRequestsPage />} />
-          <Route path="archive" element={<ArchiveRecordsPage />} />
-          <Route path="ai-logs" element={<AIRequestsPage />} />
-          <Route path="system-logs" element={<AuditLogsPage />} />
-          <Route path="settings" element={<RolesPage />} />
+          <Route path="impersonate" element={<ImpersonatePage />} />
         </Route>
       </Route>
 
