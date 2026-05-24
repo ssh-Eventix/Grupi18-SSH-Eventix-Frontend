@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "../../auth/AuthContext";
 import { Link } from "react-router-dom";
 import {
   FaCalendarAlt,
@@ -15,6 +16,7 @@ import { eventsApi } from "../../api/eventsApi";
 const categoryOptions = ["all", "Festival", "Music", "Conference", "Comedy", "Wellness", "Party"];
 
 function HomePage() {
+  const { logout } = useAuth();
   const [draftQuery, setDraftQuery] = useState("");
   const [draftCity, setDraftCity] = useState("");
   const [query, setQuery] = useState("");
@@ -109,14 +111,31 @@ function HomePage() {
           Search
         </button>
         <nav className="buyer-links" aria-label="Buyer shortcuts">
-          <span className={backendStatus.includes("not") ? "api-status offline" : "api-status online"}>
+          <span
+            className={
+              backendStatus.includes("not")
+                ? "api-status offline"
+                : "api-status online"
+            }
+          >
             {backendStatus}
           </span>
+
           <Link to="/buyer/favorites">Favorites</Link>
+
           <Link to="/buyer/tickets">My Tickets</Link>
+
           <Link to="/buyer/profile" aria-label="Profile">
             <FaUserCircle />
           </Link>
+
+          <button
+            type="button"
+            className="logout-button"
+            onClick={logout}
+          >
+            Logout
+          </button>
         </nav>
       </form>
 

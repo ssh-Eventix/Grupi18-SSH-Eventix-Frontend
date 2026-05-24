@@ -1,26 +1,28 @@
 import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
-import { FaEye, FaEyeSlash, FaLock, FaStore, FaUserCircle } from "react-icons/fa";
+import { FaEye, FaEyeSlash, FaLock, FaUserCircle } from "react-icons/fa";
 import { useAuth } from "../../auth/AuthContext";
 import { handleApiError } from "../../utils/apiErrorHandler";
 
 function Register() {
   const { isAuthenticated, register } = useAuth();
+
   const [values, setValues] = useState({
     firstName: "",
     lastName: "",
-    tenantSlug: localStorage.getItem("tenantSlug") || "",
     email: "",
     password: "",
     confirmPassword: "",
   });
+
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
   const navigate = useNavigate();
 
   if (isAuthenticated) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/buyer" replace />;
   }
 
   const updateField = (name, value) => {
@@ -37,18 +39,19 @@ function Register() {
       return;
     }
 
-    if (!values.tenantSlug.trim()) {
-      setError("Tenant slug is required for registration.");
-      return;
-    }
-
     setLoading(true);
 
     try {
-      await register(values);
-      navigate("/", { replace: true });
+      await register({
+        firstName: values.firstName,
+        lastName: values.lastName,
+        email: values.email,
+        password: values.password,
+      });
+
+      navigate("/buyer", { replace: true });
     } catch (err) {
-      setError(handleApiError(err) || "Registration failed. Check the tenant slug and try again.");
+      setError(handleApiError(err) || "Registration failed.");
     } finally {
       setLoading(false);
     }
@@ -58,10 +61,12 @@ function Register() {
     <main className="auth-page">
       <section className="auth-card register-card">
         <div className="auth-brand">
-          <span><FaStore /></span>
+          <span>
+            <FaUserCircle />
+          </span>
           <div>
-            <h1>Create account</h1>
-            <p>Join a tenant organization and start booking events.</p>
+            <h1>Create buyer account</h1>
+            <p>Create an account to browse events and book tickets.</p>
           </div>
         </div>
 
@@ -95,20 +100,6 @@ function Register() {
               </div>
             </label>
           </div>
-
-          <label>
-            Tenant slug
-            <div className="auth-input">
-              <FaStore />
-              <input
-                onChange={(event) => updateField("tenantSlug", event.target.value)}
-                placeholder="example: viola"
-                required
-                value={values.tenantSlug}
-              />
-            </div>
-            <small>Use the slug of an existing tenant, for example the one created by SuperAdmin.</small>
-          </label>
 
           <label>
             Email
@@ -161,7 +152,7 @@ function Register() {
           </div>
 
           <button className="primary-button auth-submit" disabled={loading} type="submit">
-            {loading ? "Creating account..." : "Create account"}
+            {loading ? "Creating account..." : "Create buyer account"}
           </button>
         </form>
 

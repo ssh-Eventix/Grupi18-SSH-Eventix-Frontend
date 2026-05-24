@@ -1,33 +1,54 @@
-import { jwtDecode } from "jwt-decode";
-
-const ROLE_CLAIM = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role";
-const NAME_ID_CLAIM = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier";
-const EMAIL_CLAIM = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress";
-
-export const getRolesFromDecodedToken = (decoded) => {
-  const claimValue = decoded.role || decoded.roles || decoded[ROLE_CLAIM];
-
-  if (!claimValue) return [];
-
-  return Array.isArray(claimValue) ? claimValue : [claimValue];
-};
-
 export const getUserFromToken = (token, fallbackEmail = "") => {
-  const decoded = jwtDecode(token);
-  const roles = getRolesFromDecodedToken(decoded);
+  if (!token) return null;
+
+  const payload = JSON.parse(atob(token.split(".")[1]));
+
+  const role =
+    payload.role ||
+    payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ||
+    payload.roles ||
+    "";
+
+  const email =
+    payload.email ||
+    payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] ||
+    fallbackEmail;
 
   return {
-    id: decoded.sub || decoded.nameid || decoded[NAME_ID_CLAIM],
-    email: decoded.email || decoded[EMAIL_CLAIM] || fallbackEmail,
-    tenantId: decoded.tenantId,
-    role: roles[0],
-    roles,
+    id:
+      payload.sub ||
+      payload.nameid ||
+      payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"],
+    email,
+    role: Array.isArray(role) ? role[0] : role,
+    tenantId: payload.tenantId,
+    tenantSlug: payload.tenantSlug,
   };
 };
 
 export const defaultPathForRole = (role) => {
-  if (role === "SuperAdmin") return "/superadmin";
-  if (["Admin", "TenantAdmin", "Organizer", "Staff"].includes(role)) return "/tenant";
+  const normalizedRole = String(role || "")
+    .trim()
+    .toLowerCase()
+    .replaceAll(" ", "")
+    .replaceAll("_", "");
+
+  if (normalizedRole === "superadmin") {
+    return "/superadmin";
+  }
+
+  if (
+    normalizedRole === "admin" ||
+    normalizedRole === "tenantadmin" ||
+    normalizedRole === "staff"
+  ) {
+    return "/tenant";
+  }
+
+  if (normalizedRole === "buyer") {
+    return "/buyer";
+  }
+
   return "/buyer";
 };
 
@@ -37,11 +58,9 @@ export const startupPathFromToken = () => {
   if (!token) return "/login";
 
   try {
-    const roles = getRolesFromDecodedToken(jwtDecode(token));
-
-    return defaultPathForRole(roles[0]);
+    const user = getUserFromToken(token);
+    return defaultPathForRole(user.role);
   } catch {
-    localStorage.removeItem("token");
     return "/login";
   }
 };

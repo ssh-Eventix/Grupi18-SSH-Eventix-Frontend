@@ -8,7 +8,19 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem("token"));
   const [tenantSlug, setTenantSlug] = useState(localStorage.getItem("tenantSlug"));
+  const [loading, setLoading] = useState(false);
+
   const [user, setUser] = useState(() => {
+    const storedUser = localStorage.getItem("user");
+
+    if (storedUser) {
+      try {
+        return JSON.parse(storedUser);
+      } catch {
+        localStorage.removeItem("user");
+      }
+    }
+
     const storedToken = localStorage.getItem("token");
 
     if (!storedToken) return null;
@@ -22,19 +34,6 @@ export const AuthProvider = ({ children }) => {
 
   const isAuthenticated = !!token;
 
-  const persistTenantSlug = (value) => {
-    const nextTenantSlug = value?.trim();
-    setTenantSlug(nextTenantSlug || null);
-
-    if (nextTenantSlug) {
-      localStorage.setItem("tenantSlug", nextTenantSlug);
-    } else {
-      localStorage.removeItem("tenantSlug");
-    }
-
-    return nextTenantSlug;
-  };
-
   useEffect(() => {
     if (token) localStorage.setItem("token", token);
     else localStorage.removeItem("token");
@@ -45,60 +44,112 @@ export const AuthProvider = ({ children }) => {
     else localStorage.removeItem("tenantSlug");
   }, [tenantSlug]);
 
-  const login = async ({ email, password, tenantSlug }) => {
-    const nextTenantSlug = persistTenantSlug(tenantSlug);
-
-    const response = await api.post("/auth/login", {
-      email,
-      password,
-    },
-    {
-      header: nextTenantSlug ? {"X-Tenant-Slug": nextTenantSlug} : undefined,
-    }
-  );
-
-    const jwtToken = response.data.accessToken || response.data.token;
-
-    setToken(jwtToken);
-    const nextUser = getUserFromToken(jwtToken, email);
-
+  const saveUser = (nextUser) => {
     setUser(nextUser);
-
-    return { ...response.data, user: nextUser };
+    localStorage.setItem("user", JSON.stringify(nextUser));
   };
 
-  const register = async ({ firstName, lastName, email, password, tenantSlug }) => {
-    const nextTenantSlug = persistTenantSlug(tenantSlug);
+  const login = async ({ email, password, tenantSlug }) => {
+    const cleanTenantSlug = tenantSlug?.trim();
 
-    const response = await api.post("/auth/register", {
-      firstName,
-      lastName,
-      email,
-      password,
-    }, {
-      headers: nextTenantSlug ? { "X-Tenant-Slug": nextTenantSlug } : undefined,
-    });
+    const response = await api.post(
+      "/auth/login",
+      {
+        email: email.trim(),
+        password,
+      },
+      {
+        headers: cleanTenantSlug
+          ? {
+              "X-Tenant-Slug": cleanTenantSlug,
+            }
+          : {},
+      }
+    );
 
-    const jwtToken = response.data.accessToken || response.data.token;
-
-    if (jwtToken) {
-      setToken(jwtToken);
-      const nextUser = getUserFromToken(jwtToken, email);
-
-      setUser(nextUser);
-
-      return { ...response.data, user: nextUser };
+    if (response.data.tenantSlugRequired) {
+      return response.data;
     }
 
-    return response.data;
+    const jwtToken = response.data.accessToken || response.data.token;
+    setToken(jwtToken);
+
+    const nextUser = getUserFromToken(jwtToken, email);
+
+    const resolvedRole =
+      response.data.role ||
+      response.data.roles?.[0] ||
+      nextUser?.role ||
+      "Buyer";
+
+    const resolvedTenantSlug = response.data.tenantSlug || cleanTenantSlug || null;
+
+    const finalUser = {
+      ...nextUser,
+      role: resolvedRole,
+      tenantSlug: resolvedTenantSlug,
+    };
+
+    saveUser(finalUser);
+    setTenantSlug(resolvedTenantSlug);
+
+    return {
+      ...response.data,
+      role: resolvedRole,
+      user: finalUser,
+    };
+  };
+
+  const register = async ({ firstName, lastName, email, password }) => {
+    setLoading(true);
+
+    try {
+      localStorage.removeItem("tenantSlug");
+      localStorage.removeItem("user");
+      setTenantSlug(null);
+      setUser(null);
+
+      const response = await api.post("/auth/register", {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim(),
+        password,
+      });
+
+      const jwtToken = response.data.accessToken || response.data.token;
+
+      if (jwtToken) {
+        setToken(jwtToken);
+
+        const nextUser = getUserFromToken(jwtToken, email);
+
+        const finalUser = {
+          ...nextUser,
+          role: "Buyer",
+          tenantSlug: null,
+        };
+
+        saveUser(finalUser);
+        setTenantSlug(null);
+      }
+
+      return {
+        ...response.data,
+        role: "Buyer",
+      };
+    } finally {
+      setLoading(false);
+    }
   };
 
   const logout = () => {
     setToken(null);
     setTenantSlug(null);
     setUser(null);
+
     localStorage.removeItem("token");
     localStorage.removeItem("tenantSlug");
+    localStorage.removeItem("user");
   };
 
   return (
@@ -107,6 +158,7 @@ export const AuthProvider = ({ children }) => {
         token,
         tenantSlug,
         user,
+        loading,
         isAuthenticated,
         login,
         register,
@@ -119,6 +171,4 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-export const useAuth = () => {
-  return useContext(AuthContext);
-};
+export const useAuth = () => useContext(AuthContext);
