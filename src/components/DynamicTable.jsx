@@ -6,17 +6,20 @@ export default function DynamicTable({
   columns,
   fetchData,
   actions = {},
+  defaultPageSize = 10,
   pageSizeOptions = [5, 10, 20, 50],
   refreshKey = 0
 }) {
   const [data, setData] = useState([]);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(defaultPageSize);
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
 
   const hasActions = actions.onEdit || actions.onDelete || actions.onView;
+  const customActions = actions.custom ?? [];
+  const hasAnyActions = hasActions || customActions.length > 0;
 
   const loadData = useCallback(async (searchValue = search) => {
     setLoading(true);
@@ -51,7 +54,7 @@ export default function DynamicTable({
 
       {loading && (
         <TableSkeleton
-          columnsCount={columns.length + (hasActions ? 1 : 0)}
+          columnsCount={columns.length + (hasAnyActions ? 1 : 0)}
           rowsCount={Math.min(pageSize, 5)}
         />
       )}
@@ -66,7 +69,7 @@ export default function DynamicTable({
                 {columns.map((col) => (
                   <th key={col.key}>{col.label}</th>
                 ))}
-                {hasActions && <th>Actions</th>}
+                {hasAnyActions && <th>Actions</th>}
               </tr>
             </thead>
 
@@ -74,10 +77,10 @@ export default function DynamicTable({
               {data.map((row, i) => (
                 <tr key={row.id ?? i}>
                   {columns.map((col) => (
-                    <td key={col.key}>{row[col.key]}</td>
+                    <td key={col.key}>{col.render ? col.render(row) : row[col.key]}</td>
                   ))}
 
-                  {hasActions && (
+                  {hasAnyActions && (
                     <td className="actions-cell">
                       {actions.onView && (
                         <button type="button" onClick={() => actions.onView(row)}>
@@ -96,6 +99,21 @@ export default function DynamicTable({
                           Delete
                         </button>
                       )}
+
+                      {customActions.map((action) => {
+                        const label = typeof action.label === "function" ? action.label(row) : action.label;
+
+                        return (
+                          <button
+                            key={action.key || label}
+                            type="button"
+                            disabled={action.disabled?.(row)}
+                            onClick={() => action.onClick(row)}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
                     </td>
                   )}
                 </tr>

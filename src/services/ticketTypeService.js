@@ -20,7 +20,7 @@ const toUtcIso = (value) => {
 const mapCreateTicketTypeRequest = (data) => ({
   eventId: data.eventId,
   eventSectionId: data.eventSectionId,
-  name: data.name,
+  name: data.name?.trim(),
   price: Number(data.price),
   quantityAvailable: Number(data.quantityAvailable),
   saleStartDate: toUtcIso(data.saleStartDate),
