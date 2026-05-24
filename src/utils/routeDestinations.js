@@ -1,3 +1,11 @@
+const firstValue = (value, fallback = "") => {
+  if (Array.isArray(value)) {
+    return value.find(Boolean) || fallback;
+  }
+
+  return value || fallback;
+};
+
 export const getUserFromToken = (token, fallbackEmail = "") => {
   if (!token) return null;
 
@@ -9,10 +17,11 @@ export const getUserFromToken = (token, fallbackEmail = "") => {
     payload.roles ||
     "";
 
-  const email =
+  const email = firstValue(
     payload.email ||
-    payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"] ||
-    fallbackEmail;
+      payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"],
+    fallbackEmail
+  );
 
   return {
     id:
@@ -20,7 +29,7 @@ export const getUserFromToken = (token, fallbackEmail = "") => {
       payload.nameid ||
       payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"],
     email,
-    role: Array.isArray(role) ? role[0] : role,
+    role: firstValue(role),
     tenantId: payload.tenantId,
     tenantSlug: payload.tenantSlug,
   };
@@ -55,12 +64,12 @@ export const defaultPathForRole = (role) => {
 export const startupPathFromToken = () => {
   const token = localStorage.getItem("token");
 
-  if (!token) return "/login";
+  if (!token) return "/";
 
   try {
     const user = getUserFromToken(token);
     return defaultPathForRole(user.role);
   } catch {
-    return "/login";
+    return "/";
   }
 };

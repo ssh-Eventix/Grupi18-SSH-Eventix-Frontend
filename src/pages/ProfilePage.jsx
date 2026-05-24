@@ -1,4 +1,3 @@
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 
 const profile = {
@@ -10,11 +9,9 @@ const profile = {
 
 function ProfilePage() {
   const { logout } = useAuth();
-  const navigate = useNavigate();
 
   const handleLogout = () => {
-    logout();
-    navigate("/login", { replace: true });
+    logout("/");
   };
 
   return (

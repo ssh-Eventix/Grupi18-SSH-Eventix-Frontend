@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useAuth } from "../../auth/AuthContext";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   FaCalendarAlt,
   FaHeart,
@@ -9,43 +8,50 @@ import {
   FaTicketAlt,
   FaUserCircle,
 } from "react-icons/fa";
-import { buyerEvents } from "./buyerData";
-import api from "../../api/axios";
+import { useAuth } from "../../auth/AuthContext";
 import { eventsApi } from "../../api/eventsApi";
-
-const categoryOptions = ["all", "Festival", "Music", "Conference", "Comedy", "Wellness", "Party"];
+import { isFavoriteEvent, toggleFavoriteEvent } from "../../services/buyerStorage";
+import AuthPromptModal from "../../components/AuthPromptModal";
 
 function HomePage() {
-  const { logout } = useAuth();
+  const { user } = useAuth();
+  const location = useLocation();
+  const isPublicPage = location.pathname === "/";
+  const eventDetailsBase = isPublicPage ? "/events" : "/buyer/events";
   const [draftQuery, setDraftQuery] = useState("");
   const [draftCity, setDraftCity] = useState("");
   const [query, setQuery] = useState("");
   const [city, setCity] = useState("");
   const [category, setCategory] = useState("all");
   const [freeOnly, setFreeOnly] = useState(false);
-  const [backendStatus, setBackendStatus] = useState("Checking backend...");
-  const [events, setEvents] = useState(buyerEvents);
+  const [events, setEvents] = useState([]);
+  const [favoriteIds, setFavoriteIds] = useState(() => new Set());
+  const [authPrompt, setAuthPrompt] = useState(null);
 
-  const cityOptions = useMemo(() => [...new Set(events.map((event) => event.city))], [events]);
+  const cityOptions = useMemo(
+    () => [...new Set(events.map((event) => event.city).filter(Boolean))],
+    [events]
+  );
+
+  const categoryOptions = useMemo(
+    () => ["all", ...new Set(events.map((event) => event.category).filter(Boolean))],
+    [events]
+  );
 
   const citySuggestions = useMemo(() => {
     const normalizedCity = draftCity.trim().toLowerCase();
-    if (!normalizedCity) {
-      return [];
-    }
+    if (!normalizedCity) return [];
 
     return cityOptions.filter((item) => item.toLowerCase().startsWith(normalizedCity));
   }, [cityOptions, draftCity]);
 
   useEffect(() => {
-    api.get("/health")
-      .then((response) => setBackendStatus(response.data.message || "Backend connected"))
-      .catch(() => setBackendStatus("Backend not connected"));
-  }, []);
+    eventsApi.browse({ search: query, publicOnly: isPublicPage }).then(setEvents);
+  }, [isPublicPage, query]);
 
   useEffect(() => {
-    eventsApi.browse({ search: query }).then(setEvents);
-  }, [query]);
+    setFavoriteIds(new Set(events.filter((event) => isFavoriteEvent(event.id)).map((event) => event.id)));
+  }, [events]);
 
   const visibleEvents = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -64,6 +70,8 @@ function HomePage() {
     });
   }, [category, city, events, freeOnly, query]);
 
+  const heroEvent = visibleEvents[0] || events[0];
+
   const handleSearch = (event) => {
     event.preventDefault();
     setQuery(draftQuery);
@@ -77,6 +85,19 @@ function HomePage() {
     setCity("");
     setCategory("all");
     setFreeOnly(false);
+  };
+
+  const handleFavorite = (event) => {
+    if (!user) {
+      setAuthPrompt({
+        message: `Save ${event.title} after you log in or create a buyer account.`,
+        redirectTo: `/buyer/events/${event.id}`,
+      });
+      return;
+    }
+
+    const next = toggleFavoriteEvent(event);
+    setFavoriteIds(new Set(next.map((item) => item.id)));
   };
 
   return (
@@ -107,67 +128,66 @@ function HomePage() {
             ))}
           </datalist>
         </div>
-        <button className="primary-button" type="submit">
-          Search
-        </button>
+        <button className="primary-button" type="submit">Search</button>
         <nav className="buyer-links" aria-label="Buyer shortcuts">
-          <span
-            className={
-              backendStatus.includes("not")
-                ? "api-status offline"
-                : "api-status online"
-            }
-          >
-            {backendStatus}
-          </span>
-
-          <Link to="/buyer/favorites">Favorites</Link>
-
-          <Link to="/buyer/tickets">My Tickets</Link>
-
-          <Link to="/buyer/profile" aria-label="Profile">
-            <FaUserCircle />
-          </Link>
-
-          <button
-            type="button"
-            className="logout-button"
-            onClick={logout}
-          >
-            Logout
-          </button>
+          {isPublicPage ? (
+            <>
+              <button
+                className="buyer-shortcut-button"
+                type="button"
+                onClick={() => setAuthPrompt({
+                  message: "Log in or create an account to keep your favorite events.",
+                  redirectTo: "/buyer/favorites",
+                })}
+              >
+                <FaHeart /> Favorites
+              </button>
+              <Link className="buyer-register-link" to="/register">Create account</Link>
+              <button
+                className="buyer-profile-button"
+                type="button"
+                onClick={() => setAuthPrompt({
+                  message: "Your profile is ready after you create an account or log in.",
+                  redirectTo: "/buyer",
+                })}
+                aria-label="Profile"
+              >
+                <FaUserCircle />
+              </button>
+            </>
+          ) : (
+            <>
+              <Link to="/buyer/favorites">Favorites</Link>
+              <Link to="/buyer/tickets">My Tickets</Link>
+              <Link to="/buyer/profile" aria-label="Profile">
+                <FaUserCircle />
+              </Link>
+            </>
+          )}
         </nav>
       </form>
 
       <div className="buyer-layout-grid">
         <div className="buyer-main">
-          <section className="hero-event">
-            <div>
-              <h1>Live Music Night</h1>
-              <p>An unforgettable evening with top artists</p>
-              <div className="hero-meta">
-                <span>
-                  <FaCalendarAlt /> May 25, 2025
-                </span>
-                <span>21:00</span>
-                <span>
-                  <FaMapMarkerAlt /> Pallati i Kongreseve
-                </span>
+          {heroEvent && (
+            <section className="hero-event" style={{ backgroundImage: `linear-gradient(90deg, rgba(0,0,0,.82), rgba(0,0,0,.28)), url("${heroEvent.image}")` }}>
+              <div>
+                <h1>{heroEvent.title}</h1>
+                <p>{heroEvent.description}</p>
+                <div className="hero-meta">
+                  <span><FaCalendarAlt /> {heroEvent.date}</span>
+                  {heroEvent.time && <span>{heroEvent.time}</span>}
+                  <span><FaMapMarkerAlt /> {heroEvent.venue}</span>
+                </div>
+                <Link className="hero-ticket-link" to={`${eventDetailsBase}/${heroEvent.id}`}>View Details</Link>
               </div>
-              <Link className="hero-ticket-link" to="/buyer/events/live-music-night">Get Tickets</Link>
-            </div>
-            <div className="slider-dots">
-              <span />
-              <span />
-              <span className="active" />
-              <span />
-            </div>
-          </section>
+            </section>
+          )}
 
           <section className="event-section">
             <div className="panel-title">
               <h2>Popular Events Near You</h2>
-              <Link to="/buyer/top-events">View All</Link>
+              <Link to={isPublicPage ? "/login" : "/buyer/top-events"} state={isPublicPage ? { from: location, forceAuthPrompt: true } : undefined}>View All</Link>
             </div>
             {query && (
               <p className="search-summary">
@@ -183,18 +203,23 @@ function HomePage() {
               {visibleEvents.map((event) => (
                 <article className="event-card" key={event.id}>
                   <div className="event-card-image" style={{ backgroundImage: `url("${event.image}")` }}>
-                    <Link to="/buyer/favorites" aria-label={`Save ${event.title}`}>
+                    <button
+                      aria-label={`Save ${event.title}`}
+                      className={favoriteIds.has(event.id) ? "favorite-active" : ""}
+                      onClick={() => handleFavorite(event)}
+                      type="button"
+                    >
                       <FaHeart />
-                    </Link>
+                    </button>
                   </div>
-                  <Link className="event-title-link" to={`/buyer/events/${event.id}`}>
+                  <Link className="event-title-link" to={`${eventDetailsBase}/${event.id}`}>
                     {event.title}
                   </Link>
                   <span>{event.category}</span>
-                  <small>{event.date}</small>
+                  <small>{event.date}{event.time ? ` - ${event.time}` : ""}</small>
                   <small>{event.venue}</small>
                   <b>{event.price}</b>
-                  <Link className="mini-ticket-link" to={`/buyer/events/${event.id}`}>
+                  <Link className="mini-ticket-link" to={`${eventDetailsBase}/${event.id}`}>
                     <FaTicketAlt /> View details
                   </Link>
                 </article>
@@ -234,7 +259,7 @@ function HomePage() {
             <div className="filter-chips">
               {cityOptions.map((item) => (
                 <button
-                  className={draftCity === item ? "active" : ""}
+                  className={city === item ? "active" : ""}
                   key={item}
                   onClick={() => {
                     setDraftCity(item);
@@ -247,14 +272,6 @@ function HomePage() {
               ))}
             </div>
           </div>
-          <label>
-            Date
-            <input type="date" />
-          </label>
-          <label>
-            Price Range
-            <input type="range" min="0" max="200" defaultValue="200" />
-          </label>
           <label className="check-row">
             <input checked={freeOnly} onChange={(event) => setFreeOnly(event.target.checked)} type="checkbox" /> Free Events
           </label>
@@ -263,6 +280,13 @@ function HomePage() {
           </button>
         </aside>
       </div>
+      {authPrompt && (
+        <AuthPromptModal
+          message={authPrompt.message}
+          onClose={() => setAuthPrompt(null)}
+          redirectTo={authPrompt.redirectTo}
+        />
+      )}
     </section>
   );
 }

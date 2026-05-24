@@ -142,7 +142,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const logout = (redirectTo) => {
     setToken(null);
     setTenantSlug(null);
     setUser(null);
@@ -150,6 +150,10 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("token");
     localStorage.removeItem("tenantSlug");
     localStorage.removeItem("user");
+
+    if (redirectTo) {
+      window.location.replace(redirectTo);
+    }
   };
 
   return (

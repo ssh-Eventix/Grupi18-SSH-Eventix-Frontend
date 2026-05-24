@@ -7,6 +7,8 @@ const api = axios.create({
   },
 });
 
+const DEFAULT_TENANT_SLUG = "yllka";
+
 api.interceptors.request.use(
   (config) => {
     const url = config.url || "";
@@ -33,17 +35,13 @@ api.interceptors.request.use(
     }
 
     const token = localStorage.getItem("token");
-    const tenantSlug = localStorage.getItem("tenantSlug");
+    const tenantSlug = localStorage.getItem("tenantSlug") || DEFAULT_TENANT_SLUG;
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    if (tenantSlug) {
-      config.headers["X-Tenant-Slug"] = tenantSlug;
-    } else {
-      delete config.headers["X-Tenant-Slug"];
-    }
+    config.headers["X-Tenant-Slug"] = config.headers["X-Tenant-Slug"] || tenantSlug;
 
     return config;
   },
