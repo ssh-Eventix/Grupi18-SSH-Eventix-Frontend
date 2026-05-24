@@ -1,19 +1,29 @@
-import { Link, useNavigate } from "react-router-dom";
-import { useMemo, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import {
   FaBell,
   FaCog,
   FaEnvelope,
   FaHeart,
-  FaMapMarkerAlt,
   FaQrcode,
   FaSignOutAlt,
+  FaStar,
   FaTicketAlt,
   FaUserCircle,
 } from "react-icons/fa";
 import { useAuth } from "../../auth/AuthContext";
+import { eventsApi } from "../../api/eventsApi";
 import { buyerEvents, buyerTickets } from "./buyerData";
+import {
+  getBuyerNotifications,
+  getBuyerReviews,
+  getBuyerTickets,
+  getFavoriteEvents,
+  readObject,
+  toggleFavoriteEvent,
+  writeJson,
+} from "../../services/buyerStorage";
 
 const buildTicketQrValue = (ticket) => {
   return JSON.stringify({
@@ -27,20 +37,25 @@ const buildTicketQrValue = (ticket) => {
   });
 };
 
-const EventCards = ({ events }) => (
+const EventCards = ({ events, onFavoriteClick }) => (
   <div className="event-card-grid">
     {events.map((event) => (
       <article className="event-card" key={event.id}>
         <div className="event-card-image" style={{ backgroundImage: `url("${event.image}")` }}>
-          <Link to="/buyer/favorites" aria-label={`Save ${event.title}`}>
+          <button
+            aria-label={`Save ${event.title}`}
+            className="favorite-active"
+            onClick={() => onFavoriteClick?.(event)}
+            type="button"
+          >
             <FaHeart />
-          </Link>
+          </button>
         </div>
         <Link className="event-title-link" to={`/buyer/events/${event.id}`}>
           {event.title}
         </Link>
         <span>{event.category}</span>
-        <small>{event.date}</small>
+        <small>{event.date}{event.time ? ` - ${event.time}` : ""}</small>
         <small>{event.venue}</small>
         <b>{event.price}</b>
       </article>
@@ -48,8 +63,24 @@ const EventCards = ({ events }) => (
   </div>
 );
 
+const normalizeEmail = (email) => {
+  if (Array.isArray(email)) {
+    return email.find(Boolean) || "";
+  }
+
+  return typeof email === "string" ? email : "";
+};
+
 export function BuyerEventsPage({ title, filter }) {
-  const events = buyerEvents.filter(filter ?? (() => true));
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [events, setEvents] = useState(buyerEvents);
+
+  useEffect(() => {
+    eventsApi.browse({ publicOnly: false }).then(setEvents);
+  }, []);
+
+  const visibleEvents = events.filter(filter ?? (() => true));
 
   return (
     <section className="buyer-page simple-buyer-page">
@@ -57,26 +88,43 @@ export function BuyerEventsPage({ title, filter }) {
         <h1>{title}</h1>
         <Link to="/buyer">Back to Discover</Link>
       </div>
-      <EventCards events={events} />
+      <EventCards
+        events={visibleEvents}
+        onFavoriteClick={() => navigate("/login", { state: { from: location } })}
+      />
     </section>
   );
 }
 
 export function FavoritesPage() {
+  const [favorites, setFavorites] = useState(getFavoriteEvents);
+
+  const removeFavorite = (event) => {
+    const next = toggleFavoriteEvent(event);
+    setFavorites(next);
+  };
+
   return (
-    <BuyerEventsPage
-      title="Favorites"
-      filter={(event) => ["tech-conference-2025", "summer-vibes-party"].includes(event.id)}
-    />
+    <section className="buyer-page simple-buyer-page">
+      <div className="panel-title">
+        <h1>Favorite Events</h1>
+        <Link to="/buyer">Find more events</Link>
+      </div>
+      {favorites.length ? (
+        <EventCards events={favorites} onFavoriteClick={removeFavorite} />
+      ) : (
+        <div className="empty-state">
+          <strong>No favorites yet</strong>
+          <p>Save events from Discover or Event Details and they will show here.</p>
+        </div>
+      )}
+    </section>
   );
 }
 
 export function TicketsPage() {
   const [selectedTicket, setSelectedTicket] = useState(null);
-  const storedTickets = useMemo(
-    () => JSON.parse(localStorage.getItem("buyerTickets") || "[]"),
-    []
-  );
+  const storedTickets = useMemo(() => getBuyerTickets(), []);
   const tickets = [...storedTickets, ...buyerTickets];
 
   return (
@@ -88,13 +136,12 @@ export function TicketsPage() {
       <div className="ticket-list">
         {tickets.map((ticket) => (
           <article className="ticket-card" key={ticket.id}>
-            <span>
-              <FaTicketAlt />
-            </span>
+            <span><FaTicketAlt /></span>
             <div>
               <strong>{ticket.event}</strong>
-              <small>{ticket.date} - {ticket.seat}</small>
+              <small>{ticket.date} - {ticket.seat || ticket.ticketType || "Regular"}</small>
               <code>{ticket.code}</code>
+              {ticket.quantity && <small>Quantity: {ticket.quantity}</small>}
               {ticket.referenceNumber && <small>Booking: {ticket.referenceNumber}</small>}
               {ticket.backendSynced && <small>Saved in backend</small>}
               {ticket.emailedTo && <small>Ticket emailed to {ticket.emailedTo}</small>}
@@ -120,7 +167,7 @@ export function TicketsPage() {
               />
             </div>
             <h2>{selectedTicket.event}</h2>
-            <p>{selectedTicket.date} - {selectedTicket.seat}</p>
+            <p>{selectedTicket.date} - {selectedTicket.seat || selectedTicket.ticketType}</p>
             <code>{selectedTicket.code}</code>
           </article>
         </div>
@@ -132,18 +179,36 @@ export function TicketsPage() {
 export function ProfilePage() {
   const navigate = useNavigate();
   const { logout, tenantSlug, user } = useAuth();
-  const displayEmail = user?.email || "guest@eventix.test";
-  const displayName = displayEmail.split("@")[0].replace(/[._-]/g, " ");
-  const initials = displayName
+  const [showReviews, setShowReviews] = useState(false);
+  const savedProfile = readObject("buyerProfile", {});
+  const userEmail = normalizeEmail(user?.email);
+  const userName = typeof user?.fullName === "string" ? user.fullName : "";
+  const savedEmail = savedProfile.email === "buyer@eventix.test" ? "" : normalizeEmail(savedProfile.email);
+  const displayEmail = userEmail || savedEmail || "buyer@eventix.test";
+  const [form, setForm] = useState({
+    fullName: savedProfile.fullName || userName || displayEmail.split("@")[0].replace(/[._-]/g, " "),
+    email: displayEmail,
+    city: savedProfile.city || "Prishtina",
+    phone: savedProfile.phone || "",
+  });
+  const tickets = getBuyerTickets();
+  const favorites = getFavoriteEvents();
+  const reviews = getBuyerReviews();
+
+  const initials = String(form.fullName || "Buyer")
     .split(" ")
     .filter(Boolean)
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
-    .join("") || "EA";
+    .join("") || "BA";
 
   const handleLogout = () => {
-    logout();
-    navigate("/login", { replace: true });
+    logout("/");
+  };
+
+  const saveProfile = () => {
+    writeJson("buyerProfile", form);
+    writeJson("user", { ...(user || {}), ...form, role: user?.role || "Buyer" });
   };
 
   return (
@@ -152,8 +217,8 @@ export function ProfilePage() {
         <div className="account-avatar">{initials}</div>
         <div>
           <span>Buyer account</span>
-          <h1>{displayName}</h1>
-          <p>{displayEmail}</p>
+          <h1>{form.fullName}</h1>
+          <p>{form.email}</p>
         </div>
         <button className="logout-button" type="button" onClick={handleLogout}>
           <FaSignOutAlt /> Log out
@@ -166,23 +231,28 @@ export function ProfilePage() {
             <FaUserCircle />
             <h2>Profile Details</h2>
           </div>
+          <div className="settings-form-grid">
+            <label className="settings-field">
+              Full name
+              <input value={form.fullName} onChange={(input) => setForm((prev) => ({ ...prev, fullName: input.target.value }))} />
+            </label>
+            <label className="settings-field">
+              Email
+              <input type="email" value={form.email} onChange={(input) => setForm((prev) => ({ ...prev, email: input.target.value }))} />
+            </label>
+            <label className="settings-field">
+              City
+              <input value={form.city} onChange={(input) => setForm((prev) => ({ ...prev, city: input.target.value }))} />
+            </label>
+            <label className="settings-field">
+              Phone
+              <input value={form.phone} onChange={(input) => setForm((prev) => ({ ...prev, phone: input.target.value }))} />
+            </label>
+          </div>
+          <button className="primary-button settings-save" type="button" onClick={saveProfile}>Save profile</button>
           <dl className="detail-list">
-            <div>
-              <dt>Email</dt>
-              <dd>{displayEmail}</dd>
-            </div>
-            <div>
-              <dt>Role</dt>
-              <dd>{user?.role || "Buyer"}</dd>
-            </div>
-            <div>
-              <dt>Tenant</dt>
-              <dd>{tenantSlug || "Not selected"}</dd>
-            </div>
-            <div>
-              <dt>Status</dt>
-              <dd>Active</dd>
-            </div>
+            <div><dt>Role</dt><dd>{user?.role || "Buyer"}</dd></div>
+            <div><dt>Tenant</dt><dd>{tenantSlug || "yllka"}</dd></div>
           </dl>
         </article>
 
@@ -192,13 +262,32 @@ export function ProfilePage() {
             <h2>Event Activity</h2>
           </div>
           <div className="activity-stats">
-            <span><strong>2</strong> Tickets</span>
-            <span><strong>2</strong> Favorites</span>
-            <span><strong>4</strong> Cities viewed</span>
+            <span><strong>{tickets.length}</strong> Tickets</span>
+            <span><strong>{favorites.length}</strong> Favorites</span>
+            <button type="button" onClick={() => setShowReviews((value) => !value)}>
+              <strong>{reviews.length}</strong> Reviews
+            </button>
           </div>
+          {showReviews && (
+            <div className="profile-review-list">
+              {reviews.length ? reviews.map((review) => (
+                <article className="profile-review-item" key={review.id}>
+                  <strong>{review.eventTitle || "Event review"}</strong>
+                  <small>{review.rating}/5 stars</small>
+                  <p>{review.comment}</p>
+                </article>
+              )) : (
+                <div className="empty-state compact-empty">
+                  <strong>No reviews yet</strong>
+                  <p>Your event reviews will show here.</p>
+                </div>
+              )}
+            </div>
+          )}
           <div className="account-actions">
             <Link to="/buyer/tickets">View tickets</Link>
             <Link to="/buyer/favorites">Saved events</Link>
+            <Link to="/buyer/settings">Notifications</Link>
           </div>
         </article>
       </div>
@@ -207,6 +296,14 @@ export function ProfilePage() {
 }
 
 export function BuyerSettingsPage() {
+  const notifications = getBuyerNotifications();
+  const reviews = getBuyerReviews();
+  const savedProfile = readObject("buyerProfile", {});
+  const { user } = useAuth();
+  const userEmail = normalizeEmail(user?.email);
+  const savedEmail = savedProfile.email === "buyer@eventix.test" ? "" : normalizeEmail(savedProfile.email);
+  const displayEmail = userEmail || savedEmail || "buyer@eventix.test";
+
   return (
     <section className="buyer-page simple-buyer-page">
       <div className="settings-header">
@@ -221,46 +318,41 @@ export function BuyerSettingsPage() {
         <article className="panel settings-card">
           <div className="account-card-title">
             <FaBell />
-            <h2>Notifications</h2>
+            <h2>Ticket Notifications</h2>
           </div>
-          <label className="setting-row">
-            <span>
-              <strong>Saved event reminders</strong>
-              <small>Email me before favorite events start.</small>
-            </span>
-            <input type="checkbox" defaultChecked />
-          </label>
-          <label className="setting-row">
-            <span>
-              <strong>Ticket updates</strong>
-              <small>Send purchase confirmations and schedule changes.</small>
-            </span>
-            <input type="checkbox" defaultChecked />
-          </label>
+          {notifications.length ? notifications.map((notification) => (
+            <div className="setting-row" key={notification.id}>
+              <span>
+                <strong>{notification.title}</strong>
+                <small>{notification.message}</small>
+              </span>
+            </div>
+          )) : (
+            <div className="empty-state">
+              <strong>No notifications yet</strong>
+              <p>When you buy tickets, booking item notifications will appear here.</p>
+            </div>
+          )}
         </article>
 
         <article className="panel settings-card">
           <div className="account-card-title">
-            <FaMapMarkerAlt />
-            <h2>Discovery</h2>
+            <FaStar />
+            <h2>Your Reviews</h2>
           </div>
-          <label className="settings-field">
-            Preferred city
-            <select defaultValue="">
-              <option value="">Any city</option>
-              <option>Tirana</option>
-              <option>Prishtina</option>
-              <option>Prizren</option>
-              <option>Peja</option>
-            </select>
-          </label>
-          <label className="setting-row">
-            <span>
-              <strong>Show nearby events first</strong>
-              <small>Prioritize events from your selected city.</small>
-            </span>
-            <input type="checkbox" defaultChecked />
-          </label>
+          {reviews.length ? reviews.map((review) => (
+            <div className="setting-row" key={review.id}>
+              <span>
+                <strong>{review.eventTitle}</strong>
+                <small>{review.rating}/5 - {review.comment}</small>
+              </span>
+            </div>
+          )) : (
+            <div className="empty-state">
+              <strong>No reviews yet</strong>
+              <p>Write a review from an event details page.</p>
+            </div>
+          )}
         </article>
 
         <article className="panel settings-card wide-settings-card">
@@ -271,17 +363,23 @@ export function BuyerSettingsPage() {
           <div className="settings-form-grid">
             <label className="settings-field">
               Email address
-              <input type="email" defaultValue="guest@eventix.test" />
+              <input type="email" defaultValue={displayEmail} />
             </label>
             <label className="settings-field">
-              Language
-              <select defaultValue="en">
-                <option value="en">English</option>
-                <option value="sq">Albanian</option>
+              Preferred city
+              <select defaultValue={savedProfile.city || ""}>
+                <option value="">Any city</option>
+                <option>Prishtina</option>
+                <option>Tirana</option>
+                <option>Prizren</option>
+                <option>Peja</option>
               </select>
             </label>
           </div>
-          <button className="primary-button settings-save" type="button">Save preferences</button>
+          <div className="ai-note">
+            <FaBell />
+            <span>AI recommendations use your favorites, ticket history, and reviews to suggest better events.</span>
+          </div>
         </article>
       </div>
     </section>

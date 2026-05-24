@@ -31,9 +31,11 @@ function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const redirectTo = location.state?.from?.pathname;
+  const redirectTo = location.state?.from
+    ? `${location.state.from.pathname || ""}${location.state.from.search || ""}`
+    : "";
 
-if (isAuthenticated) {
+if (isAuthenticated && !location.state?.forceAuthPrompt) {
   return <Navigate to={startupPathFromToken()} replace />;
 }
 

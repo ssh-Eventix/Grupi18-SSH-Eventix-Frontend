@@ -11,6 +11,7 @@ import { startupPathFromToken } from "../utils/routeDestinations";
 import HomePage from "../pages/buyer/HomePage";
 import CheckoutPage from "../pages/buyer/CheckoutPage";
 import EventDetailsPage from "../pages/buyer/EventDetailsPage";
+import PaymentPage from "../pages/buyer/PaymentPage";
 import {
   BuyerEventsPage,
   BuyerSettingsPage,
@@ -59,17 +60,18 @@ const StartRedirect = () => {
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<StartRedirect />} />
+      <Route path="/" element={<HomePage />} />
+      <Route path="/events/:eventId" element={<EventDetailsPage />} />
 
       <Route element={<RoleRoute allowedRoles={["Buyer"]} />}>
         <Route path="/buyer" element={<BuyerLayout />}>
           <Route index element={<HomePage />} />
-          <Route path="categories" element={<BuyerEventsPage title="Categories" />} />
           <Route path="top-events" element={<BuyerEventsPage title="Top Events" filter={(event) => event.tag === "Top Event"} />} />
           <Route path="weekend" element={<BuyerEventsPage title="This Weekend" filter={(event) => event.tag === "This Weekend"} />} />
           <Route path="free-events" element={<BuyerEventsPage title="Free Events" filter={(event) => event.price === "Free"} />} />
           <Route path="events/:eventId" element={<EventDetailsPage />} />
           <Route path="checkout/:eventId" element={<CheckoutPage />} />
+          <Route path="payment/:eventId" element={<PaymentPage />} />
           <Route path="tickets" element={<BuyerTicketsPage />} />
           <Route path="favorites" element={<FavoritesPage />} />
           <Route path="profile" element={<BuyerProfilePage />} />
