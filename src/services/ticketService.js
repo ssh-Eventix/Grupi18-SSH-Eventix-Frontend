@@ -18,10 +18,13 @@ export const ticketService = {
         normalizeTicket({
           ...ticket,
           bookingId: booking.id,
+          eventId: booking.eventId,
           eventTitle: booking.eventTitle,
           buyerEmail: booking.buyerEmail,
           referenceNumber: booking.referenceNumber,
           bookingStatus: booking.status,
+          bookingDate: booking.bookingDate,
+          totalAmount: booking.totalAmount,
         })
       )
     );

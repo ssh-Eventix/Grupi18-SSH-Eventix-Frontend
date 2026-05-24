@@ -27,9 +27,11 @@ import DashboardPage from "../pages/tenant/DashboardPage";
 import EventCategoriesPage from "../pages/tenant/EventCategoriesPage";
 import EventsPage from "../pages/tenant/EventsPage";
 import EventSectionsPage from "../pages/tenant/EventSectionsPage";
+import StaffPage from "../pages/tenant/StaffPage";
 import {
   AIRequestsPage,
   ArchiveRecordsPage,
+  AttendeesPage,
   AuditLogsPage,
   BookingsPage,
   CheckInsPage,
@@ -48,6 +50,7 @@ import {
 import VenueSectionsPage from "../pages/tenant/VenueSectionsPage";
 import VenuesPage from "../pages/tenant/VenuesPage";
 import TenantAdminsPage from "../pages/superadmin/TenantAdminsPage";
+import AIStudioPage from "../pages/tenant/AIStudioPage";
 
 const StartRedirect = () => {
   return <Navigate to={startupPathFromToken()} replace />;
@@ -90,11 +93,12 @@ function AppRoutes() {
           <Route path="orders" element={<BookingsPage />} />
           <Route path="payments" element={<PaymentsPage />} />
           <Route path="payment-methods" element={<PaymentMethodsPage />} />
-          <Route path="attendees" element={<UsersPage />} />
-          <Route path="staff" element={<UsersPage />} />
+          <Route path="attendees" element={<AttendeesPage />} />
+          <Route path="staff" element={<StaffPage />} />
           <Route path="check-in" element={<CheckInsPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="reviews" element={<ReviewsPage />} />
+          <Route path="ai-studio" element={<AIStudioPage />} />
           <Route path="roles" element={<RolesPage />} />
           <Route path="user-roles" element={<UserRolesPage />} />
           <Route path="reports" element={<AuditLogsPage />} />

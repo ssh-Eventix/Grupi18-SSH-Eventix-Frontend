@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
+  FaBrain,
   FaChartBar,
   FaClipboardList,
   FaCog,
@@ -23,6 +24,7 @@ const links = [
   { path: "/tenant/attendees", label: "Attendees", icon: FaUsers },
   { path: "/tenant/staff", label: "Staff", icon: FaUsers },
   { path: "/tenant/reviews", label: "Reviews", icon: FaStar },
+  { path: "/tenant/ai-studio", label: "AI Studio", icon: FaBrain },
   { path: "/tenant/reports", label: "Reports", icon: FaChartBar },
   { path: "/tenant/settings", label: "Settings", icon: FaCog },
 ];

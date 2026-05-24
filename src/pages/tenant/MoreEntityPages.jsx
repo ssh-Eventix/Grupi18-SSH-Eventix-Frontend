@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import DynamicTable from "../../components/DynamicTable.jsx";
 import EntityCrudPage from "../../components/crud/EntityCrudPage";
 import { createCrudService, localCrudService } from "../../services/crudService";
 import { eventsService } from "../../services/eventsService";
@@ -124,6 +125,22 @@ export function TicketTypesPage() {
       return;
     }
 
+    const normalizedName = form.name.trim().toLowerCase();
+
+    if (!normalizedName) {
+      setError("Ticket type name is required.");
+      return;
+    }
+
+    const duplicateName = ticketTypes.some(
+      (type) => type.name?.trim().toLowerCase() === normalizedName
+    );
+
+    if (duplicateName) {
+      setError("A ticket type with this name already exists for the selected event.");
+      return;
+    }
+
     if (Number(form.price) < 0) {
       setError("Price cannot be negative.");
       return;
@@ -182,6 +199,57 @@ export function TicketTypesPage() {
     if (!section) return ticketType.eventSectionId || "";
     return section.code ? `${section.name} (${section.code})` : section.name;
   };
+
+  const ticketTypeRows = useMemo(() => {
+    return ticketTypes.map((type) => ({
+      ...type,
+      sectionLabel: getSectionLabel(type),
+      priceText: `${Number(type.price || 0).toFixed(2)} EUR`,
+      statusText: getSaleStatus(type),
+      saleStartText: formatDate(type.saleStartDate),
+      saleEndText: formatDate(type.saleEndDate),
+    }));
+  }, [ticketTypes, sectionsById]);
+
+  const fetchTicketTypes = useCallback(
+    async (page, pageSize, search) => {
+      const term = search.trim().toLowerCase();
+      const filtered = ticketTypeRows.filter((type) =>
+        [
+          type.sectionLabel,
+          type.name,
+          type.priceText,
+          type.quantityAvailable,
+          type.soldQuantity,
+          type.statusText,
+          type.saleStartText,
+          type.saleEndText,
+        ]
+          .filter((value) => value !== undefined && value !== null)
+          .join(" ")
+          .toLowerCase()
+          .includes(term)
+      );
+      const start = (page - 1) * pageSize;
+
+      return {
+        data: filtered.slice(start, start + pageSize),
+        totalPages: Math.ceil(filtered.length / pageSize) || 1,
+      };
+    },
+    [ticketTypeRows]
+  );
+
+  const ticketTypeColumns = [
+    { key: "sectionLabel", label: "Section" },
+    { key: "name", label: "Name" },
+    { key: "priceText", label: "Price" },
+    { key: "quantityAvailable", label: "Available" },
+    { key: "soldQuantity", label: "Sold" },
+    { key: "statusText", label: "Status" },
+    { key: "saleStartText", label: "Sale Start" },
+    { key: "saleEndText", label: "Sale End" },
+  ];
 
   return (
     <section className="page crud-page">
@@ -300,43 +368,19 @@ export function TicketTypesPage() {
         </button>
       </form>
 
-      <div className="table-panel">
-        {loading ? (
+      {loading ? (
+        <div className="table-panel">
           <p>Loading...</p>
-        ) : ticketTypes.length === 0 ? (
-          <p className="status-text">No ticket types found for the selected event.</p>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Section</th>
-                <th>Name</th>
-                <th>Price</th>
-                <th>Available</th>
-                <th>Sold</th>
-                <th>Status</th>
-                <th>Sale Start</th>
-                <th>Sale End</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {ticketTypes.map((type) => (
-                <tr key={type.id}>
-                  <td>{getSectionLabel(type)}</td>
-                  <td>{type.name}</td>
-                  <td>{Number(type.price || 0).toFixed(2)} EUR</td>
-                  <td>{type.quantityAvailable}</td>
-                  <td>{type.soldQuantity}</td>
-                  <td>{getSaleStatus(type)}</td>
-                  <td>{formatDate(type.saleStartDate)}</td>
-                  <td>{formatDate(type.saleEndDate)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+        </div>
+      ) : (
+        <DynamicTable
+          columns={ticketTypeColumns}
+          fetchData={fetchTicketTypes}
+          defaultPageSize={5}
+          pageSizeOptions={[5, 10, 20]}
+          refreshKey={`${form.eventId}-${ticketTypes.length}-${loading}`}
+        />
+      )}
     </section>
   );
 }
@@ -594,6 +638,51 @@ export function CheckInsPage() {
     await loadTicket(code);
   };
 
+  const ticketRows = useMemo(() => {
+    return tickets.map((item) => ({
+      ...item,
+      statusText: statusLabels[item.status] ?? String(item.status),
+      issuedAtText: formatDate(item.issuedAt),
+      usedAtText: item.usedAt ? formatDate(item.usedAt) : "Not checked in",
+    }));
+  }, [tickets]);
+
+  const fetchCheckInTickets = useCallback(
+    async (page, pageSize, search) => {
+      const term = search.trim().toLowerCase();
+      const filtered = ticketRows.filter((item) =>
+        [
+          item.ticketCode,
+          item.eventTitle,
+          item.buyerEmail,
+          item.statusText,
+          item.issuedAtText,
+          item.usedAtText,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(term)
+      );
+      const start = (page - 1) * pageSize;
+
+      return {
+        data: filtered.slice(start, start + pageSize),
+        totalPages: Math.ceil(filtered.length / pageSize) || 1,
+      };
+    },
+    [ticketRows]
+  );
+
+  const checkInColumns = [
+    { key: "ticketCode", label: "Ticket Code" },
+    { key: "eventTitle", label: "Event" },
+    { key: "buyerEmail", label: "Buyer Email" },
+    { key: "statusText", label: "Status" },
+    { key: "issuedAtText", label: "Issued At" },
+    { key: "usedAtText", label: "Used At" },
+  ];
+
   return (
     <section className="page crud-page">
       <div className="crud-header">
@@ -667,57 +756,198 @@ export function CheckInsPage() {
         )}
       </div>
 
-      <div className="table-panel">
+      <div className="table-section-title">
         <h2>All Tickets</h2>
-        {loadingTickets ? (
+      </div>
+
+      {loadingTickets ? (
+        <div className="table-panel">
           <p>Loading tickets...</p>
-        ) : tickets.length === 0 ? (
-          <p className="status-text">No tickets found yet.</p>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Ticket Code</th>
-                <th>Event</th>
-                <th>Buyer Email</th>
-                <th>Status</th>
-                <th>Issued At</th>
-                <th>Used At</th>
-                <th>Action</th>
-              </tr>
-            </thead>
+        </div>
+      ) : (
+        <DynamicTable
+          columns={checkInColumns}
+          fetchData={fetchCheckInTickets}
+          defaultPageSize={5}
+          pageSizeOptions={[5, 10, 20]}
+          refreshKey={`${tickets.length}-${checkingIn}-${loadingTickets}`}
+          actions={{
+            onView: (item) => findTicketFromList(item.ticketCode),
+            custom: [
+              {
+                key: "check-in",
+                label: (item) => (item.status === 1 ? "Checked in" : "Check in"),
+                disabled: (item) => checkingIn || item.status === 1,
+                onClick: (item) => checkInTicket(item.ticketCode),
+              },
+            ],
+          }}
+        />
+      )}
+    </section>
+  );
+}
 
-            <tbody>
-              {tickets.map((item) => {
-                const itemStatus = statusLabels[item.status] ?? String(item.status);
-                const itemUsed = item.status === 1;
+export function AttendeesPage() {
+  const [events, setEvents] = useState([]);
+  const [tickets, setTickets] = useState([]);
+  const [eventId, setEventId] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-                return (
-                  <tr key={item.id}>
-                    <td>{item.ticketCode}</td>
-                    <td>{item.eventTitle || ""}</td>
-                    <td>{item.buyerEmail || ""}</td>
-                    <td>{itemStatus}</td>
-                    <td>{formatDate(item.issuedAt)}</td>
-                    <td>{item.usedAt ? formatDate(item.usedAt) : "Not checked in"}</td>
-                    <td>
-                      <button type="button" onClick={() => findTicketFromList(item.ticketCode)}>
-                        View
-                      </button>
-                      <button
-                        type="button"
-                        disabled={checkingIn || itemUsed}
-                        onClick={() => checkInTicket(item.ticketCode)}
-                      >
-                        {itemUsed ? "Checked in" : "Check in"}
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
+  const statusLabels = {
+    0: "Ready",
+    1: "Checked in",
+    2: "Cancelled",
+    3: "Refunded",
+  };
+
+  const loadData = async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const [eventsData, ticketsData] = await Promise.all([
+        eventsService.getAll(),
+        ticketService.getAll(),
+      ]);
+
+      setEvents(Array.isArray(eventsData) ? eventsData : eventsData?.data ?? []);
+      setTickets(Array.isArray(ticketsData) ? ticketsData : []);
+    } catch (err) {
+      setError(handleApiError(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const eventTickets = useMemo(() => {
+    return tickets.filter((ticket) => !eventId || String(ticket.eventId) === String(eventId));
+  }, [tickets, eventId]);
+
+  const stats = useMemo(() => {
+    const total = eventTickets.length;
+    const checkedIn = eventTickets.filter((ticket) => ticket.status === 1).length;
+    const cancelled = eventTickets.filter((ticket) => ticket.status === 2 || ticket.status === 3).length;
+    const pending = total - checkedIn - cancelled;
+    const rate = total > 0 ? Math.round((checkedIn / total) * 100) : 0;
+
+    return { total, checkedIn, pending, cancelled, rate };
+  }, [eventTickets]);
+
+  const formatDate = (value) => {
+    return value ? new Date(value).toLocaleString() : "";
+  };
+
+  const attendeeRows = useMemo(() => {
+    return eventTickets.map((ticket) => ({
+      ...ticket,
+      statusText: statusLabels[ticket.status] ?? String(ticket.status),
+      issuedAtText: formatDate(ticket.issuedAt),
+      usedAtText: ticket.usedAt ? formatDate(ticket.usedAt) : "Not checked in",
+    }));
+  }, [eventTickets]);
+
+  const fetchAttendees = useCallback(
+    async (page, pageSize, searchValue) => {
+      const term = searchValue.trim().toLowerCase();
+      const filtered = attendeeRows.filter((ticket) =>
+        [
+          ticket.eventTitle,
+          ticket.buyerEmail,
+          ticket.ticketCode,
+          ticket.referenceNumber,
+          ticket.statusText,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(term)
+      );
+
+      const start = (page - 1) * pageSize;
+
+      return {
+        data: filtered.slice(start, start + pageSize),
+        totalPages: Math.ceil(filtered.length / pageSize) || 1,
+      };
+    },
+    [attendeeRows]
+  );
+
+  const attendeeColumns = [
+    { key: "eventTitle", label: "Event" },
+    { key: "buyerEmail", label: "Buyer Email" },
+    { key: "ticketCode", label: "Ticket Code" },
+    { key: "referenceNumber", label: "Booking" },
+    { key: "statusText", label: "Status" },
+    { key: "issuedAtText", label: "Issued At" },
+    { key: "usedAtText", label: "Check-in Time" },
+  ];
+
+  return (
+    <section className="page crud-page">
+      <div className="crud-header">
+        <div>
+          <h1>Attendees</h1>
+          <p>Track ticket holders, check-in status, and attendance by event.</p>
+        </div>
+        <button type="button" onClick={loadData} disabled={loading}>
+          {loading ? "Refreshing..." : "Refresh"}
+        </button>
+      </div>
+
+      {error && <div className="form-alert">{error}</div>}
+
+      <div className="dynamic-form attendees-filter">
+        <div className="form-field">
+          <label>Event</label>
+          <select value={eventId} onChange={(event) => setEventId(event.target.value)}>
+            <option value="">All events</option>
+            {events.map((event) => (
+              <option key={event.id} value={event.id}>
+                {event.title || event.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="attendees-stats">
+        <article className="attendee-stat-card">
+          <span>Total attendees</span>
+          <strong>{stats.total}</strong>
+          <small>Tickets issued</small>
+        </article>
+        <article className="attendee-stat-card">
+          <span>Checked in</span>
+          <strong>{stats.checkedIn}</strong>
+          <small>{stats.rate}% attendance rate</small>
+        </article>
+        <article className="attendee-stat-card">
+          <span>Not checked in</span>
+          <strong>{stats.pending}</strong>
+          <small>Ready for entrance</small>
+        </article>
+        <article className="attendee-stat-card">
+          <span>Cancelled / refunded</span>
+          <strong>{stats.cancelled}</strong>
+          <small>Inactive tickets</small>
+        </article>
+      </div>
+
+      <div className="attendees-table">
+        <DynamicTable
+          columns={attendeeColumns}
+          fetchData={fetchAttendees}
+          defaultPageSize={5}
+          pageSizeOptions={[5, 10, 20]}
+          refreshKey={`${eventId}-${tickets.length}-${loading}`}
+        />
       </div>
     </section>
   );
