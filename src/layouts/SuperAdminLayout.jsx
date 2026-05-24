@@ -1,18 +1,11 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
-  FaCalendarAlt,
   FaChartPie,
-  FaBrain,
-  FaClipboardList,
-  FaCog,
-  FaCreditCard,
   FaEnvelope,
-  FaFileAlt,
-  FaListAlt,
-  FaMapMarkerAlt,
   FaShieldAlt,
   FaSignOutAlt,
   FaStore,
+  FaUserSecret,
   FaUsers,
 } from "react-icons/fa";
 import { useAuth } from "../auth/AuthContext";
@@ -22,20 +15,10 @@ const links = [
   { path: "/superadmin/tenants", label: "Tenants", icon: FaStore },
   { path: "/superadmin/tenant-domains", label: "Tenant Domains", icon: FaEnvelope },
   { path: "/superadmin/tenant-admins", label: "Tenant Admins", icon: FaUsers },
-  { path: "/superadmin/events", label: "Events", icon: FaCalendarAlt },
-  { path: "/superadmin/users", label: "Users", icon: FaUsers },
-  { path: "/superadmin/venues", label: "Venues", icon: FaMapMarkerAlt },
-  { path: "/superadmin/tickets", label: "Tickets", icon: FaCreditCard },
-  { path: "/superadmin/orders", label: "Orders", icon: FaClipboardList },
-  { path: "/superadmin/reports", label: "Reports", icon: FaFileAlt },
-  { path: "/superadmin/analytics", label: "Analytics", icon: FaChartPie },
-  { path: "/superadmin/archive", label: "Archive", icon: FaFileAlt },
-  { path: "/superadmin/ai-logs", label: "AI Logs", icon: FaBrain },
-  { path: "/superadmin/system-logs", label: "System Logs", icon: FaListAlt },
-  { path: "/superadmin/settings", label: "Settings", icon: FaCog },
+  { path: "/superadmin/impersonate", label: "Impersonate", icon: FaUserSecret },
 ];
 
-const SuperAdminLayout = () => {
+export default function SuperAdminLayout() {
   const { logout } = useAuth();
   const navigate = useNavigate();
 
@@ -49,10 +32,10 @@ const SuperAdminLayout = () => {
       <aside className="sidebar">
         <div className="brand">
           <FaShieldAlt />
-          <span>EventHub</span>
+          <span>Eventix</span>
         </div>
 
-        <nav className="side-nav" aria-label="Super admin navigation">
+        <nav className="side-nav">
           {links.map((link) => {
             const Icon = link.icon;
             return (
@@ -73,12 +56,11 @@ const SuperAdminLayout = () => {
       <main className="workspace">
         <div className="role-ribbon admin-ribbon">
           <FaShieldAlt />
-          <span>SUPERADMIN (Platform Owner)</span>
+          <span>SUPERADMIN</span>
         </div>
+
         <Outlet />
       </main>
     </div>
   );
-};
-
-export default SuperAdminLayout;
+}

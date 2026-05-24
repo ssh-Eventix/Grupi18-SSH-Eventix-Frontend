@@ -1,163 +1,361 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  FaCalendarAlt,
-  FaChartPie,
-  FaCheckSquare,
-  FaCrown,
+  FaCheckCircle,
+  FaEnvelope,
+  FaRedo,
+  FaShieldAlt,
   FaStore,
-  FaTicketAlt,
+  FaUserSecret,
   FaUsers,
-  FaWallet,
 } from "react-icons/fa";
 import { Link } from "react-router-dom";
+import { tenantsService } from "../../services/tenantsService";
+import { tenantEmailDomainsService } from "../../services/tenantEmailDomainsService";
+import { handleApiError } from "../../utils/apiErrorHandler";
+import "./SuperAdmin.css";
 
-const stats = [
-  { label: "Total Tenants", value: "48", note: "+8 this month", icon: FaStore },
-  { label: "Total Events", value: "1,248", note: "+18% this month", icon: FaCheckSquare },
-  { label: "Tickets Sold", value: "125,860", note: "+21% this month", icon: FaTicketAlt },
-  { label: "Total Revenue", value: "EUR 1,245,300", note: "+24% this month", icon: FaWallet },
-];
+const getTenantStatusLabel = (status) => {
+  const normalized = Number(status);
+  if (normalized === 1) return "Active";
+  if (normalized === 2) return "Suspended";
+  if (normalized === 3) return "Pending";
+  return "Unknown";
+};
 
-const topEvents = [
-  ["Tech Conference 2025", "Acme Events", "EUR 68,750"],
-  ["AI & Future Summit", "Future Group", "EUR 53,200"],
-  ["Marketing Summit", "BrandHub", "EUR 41,800"],
-  ["Design Talks", "CreativeHub", "EUR 32,450"],
-];
+const getTenantStatusClass = (tenant) => {
+  if (tenant.isActive) return "good";
+  if (Number(tenant.status) === 2) return "bad";
+  return "warn";
+};
 
-const tenants = [
-  ["Acme Events", "Joined May 21, 2025"],
-  ["CreativeHub", "Joined May 20, 2025"],
-  ["Future Group", "Joined May 18, 2025"],
-  ["BrandHub", "Joined May 15, 2025"],
-];
+const buildCountryStats = (tenants) => {
+  const map = tenants.reduce((result, tenant) => {
+    const country = tenant.country?.trim() || "Not set";
+    result[country] = (result[country] || 0) + 1;
+    return result;
+  }, {});
 
-const modules = [
-  { label: "Tenants", path: "/superadmin/tenants", icon: FaStore },
-  { label: "Events", path: "/superadmin/events", icon: FaCalendarAlt },
-  { label: "Users", path: "/superadmin/users", icon: FaUsers },
-  { label: "Venues", path: "/superadmin/venues", icon: FaStore },
-  { label: "Tickets", path: "/superadmin/tickets", icon: FaTicketAlt },
-  { label: "Bookings", path: "/superadmin/orders", icon: FaWallet },
-  { label: "Audit Logs", path: "/superadmin/system-logs", icon: FaChartPie },
-  { label: "Archive", path: "/superadmin/archive", icon: FaChartPie },
-  { label: "AI Logs", path: "/superadmin/ai-logs", icon: FaCrown },
-  { label: "Roles", path: "/superadmin/settings", icon: FaCrown },
-];
+  return Object.entries(map)
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+};
 
-function SuperAdminDashboardPage() {
+export default function SuperAdminDashboardPage() {
+  const [tenants, setTenants] = useState([]);
+  const [domains, setDomains] = useState([]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  const loadDashboard = useCallback(async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const [tenantData, domainData] = await Promise.all([
+        tenantsService.getAll(),
+        tenantEmailDomainsService.getAll(),
+      ]);
+
+      setTenants(Array.isArray(tenantData) ? tenantData : []);
+      setDomains(Array.isArray(domainData) ? domainData : []);
+    } catch (err) {
+      setError(handleApiError(err));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
+
+  const activeTenants = useMemo(
+    () => tenants.filter((tenant) => tenant.isActive).length,
+    [tenants]
+  );
+
+  const inactiveTenants = tenants.length - activeTenants;
+
+  const trialTenants = useMemo(
+    () => tenants.filter((tenant) => tenant.isTrial).length,
+    [tenants]
+  );
+
+  const tenantsWithDomains = useMemo(() => {
+    const tenantIds = new Set(domains.map((domain) => domain.tenantId));
+    return tenantIds.size;
+  }, [domains]);
+
+  const domainCoverage = tenants.length
+    ? Math.round((tenantsWithDomains / tenants.length) * 100)
+    : 0;
+
+  const activePercent = tenants.length
+    ? Math.round((activeTenants / tenants.length) * 100)
+    : 0;
+
+  const countryStats = useMemo(() => buildCountryStats(tenants), [tenants]);
+  const maxCountryCount = Math.max(...countryStats.map((item) => item.count), 1);
+
+  const recentTenants = useMemo(() => {
+    return [...tenants]
+      .sort((a, b) => new Date(b.createdAtUtc || 0) - new Date(a.createdAtUtc || 0))
+      .slice(0, 6);
+  }, [tenants]);
+
   return (
-    <section className="dashboard-page admin-dashboard">
-      <header className="dashboard-header">
+    <section className="superadmin-page">
+      <header className="superadmin-hero">
         <div>
-          <h1>Platform Overview</h1>
-          <p>Monitor and manage the entire platform.</p>
+          <span className="superadmin-kicker">
+            <FaShieldAlt /> Platform control center
+          </span>
+          <h1>SuperAdmin Overview</h1>
+          <p>
+            Manage tenant onboarding, domain rules, platform access, and safe support
+            impersonation from one clean workspace.
+          </p>
         </div>
-        <div className="profile-chip">
-          <span className="notification-dot">3</span>
-          <span className="avatar blue-avatar">SA</span>
-          <div>
-            <strong>Super Admin</strong>
-            <small>Platform Owner</small>
-          </div>
+
+        <div className="superadmin-hero-actions">
+          <button className="secondary-action" type="button" onClick={loadDashboard}>
+            <FaRedo /> Refresh
+          </button>
+          <Link className="primary-action" to="/superadmin/tenants">
+            <FaStore /> New tenant
+          </Link>
         </div>
       </header>
 
-      <div className="stat-grid">
-        {stats.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <article className="stat-card blue-stat" key={stat.label}>
-              <span className="stat-icon">
-                <Icon />
-              </span>
-              <div>
-                <strong>{stat.value}</strong>
-                <span>{stat.label}</span>
-                <small>{stat.note}</small>
-              </div>
-            </article>
-          );
-        })}
-      </div>
+      {error && <div className="form-alert">{error}</div>}
 
-      <div className="admin-grid">
-        <article className="panel chart-panel">
-          <div className="panel-title">
-            <h2>Revenue Overview</h2>
-            <button type="button">This Month</button>
+      <div className="superadmin-grid">
+        <article className="superadmin-card metric-card span-3">
+          <div>
+            <span className="metric-label">Total tenants</span>
+            <strong className="metric-value">{loading ? "..." : tenants.length}</strong>
+            <span className="metric-note">Registered organizations</span>
           </div>
-          <div className="line-chart blue-chart">
-            <svg viewBox="0 0 320 130" role="img" aria-label="Revenue trend chart">
-              <polyline points="0,82 34,58 68,66 102,42 136,56 170,22 204,44 238,36 272,6 306,14" />
+          <span className="metric-icon"><FaStore /></span>
+        </article>
+
+        <article className="superadmin-card metric-card span-3">
+          <div>
+            <span className="metric-label">Active tenants</span>
+            <strong className="metric-value">{loading ? "..." : activeTenants}</strong>
+            <span className="metric-note">Currently enabled</span>
+          </div>
+          <span className="metric-icon"><FaCheckCircle /></span>
+        </article>
+
+        <article className="superadmin-card metric-card span-3">
+          <div>
+            <span className="metric-label">Trial tenants</span>
+            <strong className="metric-value">{loading ? "..." : trialTenants}</strong>
+            <span className="metric-note">Trial onboarding</span>
+          </div>
+          <span className="metric-icon"><FaUsers /></span>
+        </article>
+
+        <article className="superadmin-card metric-card span-3">
+          <div>
+            <span className="metric-label">Email domains</span>
+            <strong className="metric-value">{loading ? "..." : domains.length}</strong>
+            <span className="metric-note">Auto-approval rules</span>
+          </div>
+          <span className="metric-icon"><FaEnvelope /></span>
+        </article>
+
+        <article className="superadmin-card span-5">
+          <div className="panel-title">
+            <div>
+              <h2>Tenant health</h2>
+              <p>Active vs inactive platform accounts.</p>
+            </div>
+            <span className="badge good">{activePercent}% active</span>
+          </div>
+
+          <div className="chart-donut-wrap">
+            <svg className="donut-chart" viewBox="0 0 172 172" aria-label="Tenant activity chart">
+              <circle className="donut-bg" cx="86" cy="86" r="68" />
+              <circle
+                className="donut-progress"
+                cx="86"
+                cy="86"
+                r="68"
+                strokeDasharray={`${activePercent * 4.27} 427`}
+              />
+              <text className="donut-center" x="86" y="92">
+                {activePercent}%
+              </text>
             </svg>
-          </div>
-        </article>
 
-        <article className="panel top-list">
-          <div className="panel-title">
-            <h2>Top Performing Events</h2>
-            <button type="button">View All</button>
-          </div>
-          {topEvents.map(([title, owner, revenue], index) => (
-            <div className="rank-row" key={title}>
-              <span>{index + 1}</span>
-              <div>
-                <strong>{title}</strong>
-                <small>{owner}</small>
+            <div className="legend-list">
+              <div className="legend-item">
+                <span><i className="status-dot good" /> Active</span>
+                <strong>{activeTenants}</strong>
               </div>
-              <b>{revenue}</b>
+              <div className="legend-item">
+                <span><i className="status-dot muted" /> Inactive</span>
+                <strong>{inactiveTenants}</strong>
+              </div>
+              <div className="legend-item">
+                <span><i className="status-dot warn" /> Trial</span>
+                <strong>{trialTenants}</strong>
+              </div>
             </div>
-          ))}
-        </article>
-
-        <article className="panel status-panel">
-          <div className="panel-title">
-            <h2>Events by Status</h2>
-          </div>
-          <div className="donut-wrap">
-            <div className="donut-chart" />
-            <ul>
-              <li><span className="dot blue" />Upcoming <b>605 (48%)</b></li>
-              <li><span className="dot green" />Ongoing <b>152 (12%)</b></li>
-              <li><span className="dot orange" />Completed <b>511 (41%)</b></li>
-              <li><span className="dot red" />Canceled <b>21 (2%)</b></li>
-            </ul>
           </div>
         </article>
 
-        <article className="panel top-list">
+        <article className="superadmin-card span-7">
           <div className="panel-title">
-            <h2>Recent Tenants</h2>
-            <button type="button">View All</button>
-          </div>
-          {tenants.map(([name, date]) => (
-            <div className="tenant-row" key={name}>
-              <span><FaCrown /></span>
-              <strong>{name}</strong>
-              <small>{date}</small>
+            <div>
+              <h2>Platform coverage</h2>
+              <p>Useful setup signals for SuperAdmin work.</p>
             </div>
-          ))}
+            <span className="badge info">{domainCoverage}% domain coverage</span>
+          </div>
+
+          <div className="bar-list">
+            <div className="bar-row">
+              <div className="bar-meta">
+                <span>Tenants with email-domain rules</span>
+                <strong>{tenantsWithDomains}/{tenants.length}</strong>
+              </div>
+              <div className="bar-track">
+                <div className="bar-fill" style={{ width: `${domainCoverage}%` }} />
+              </div>
+            </div>
+
+            <div className="bar-row">
+              <div className="bar-meta">
+                <span>Active tenants</span>
+                <strong>{activePercent}%</strong>
+              </div>
+              <div className="bar-track">
+                <div className="bar-fill" style={{ width: `${activePercent}%` }} />
+              </div>
+            </div>
+
+            <div className="bar-row">
+              <div className="bar-meta">
+                <span>Trial tenants</span>
+                <strong>{tenants.length ? Math.round((trialTenants / tenants.length) * 100) : 0}%</strong>
+              </div>
+              <div className="bar-track">
+                <div
+                  className="bar-fill"
+                  style={{ width: `${tenants.length ? Math.round((trialTenants / tenants.length) * 100) : 0}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article className="superadmin-card span-7">
+          <div className="panel-title">
+            <div>
+              <h2>Recent tenants</h2>
+              <p>Newest organizations created on the platform.</p>
+            </div>
+            <Link className="secondary-action" to="/superadmin/tenants">View all</Link>
+          </div>
+
+          <div className="table-wrap">
+            <table className="superadmin-table">
+              <thead>
+                <tr>
+                  <th>Tenant</th>
+                  <th>Location</th>
+                  <th>Status</th>
+                  <th>Trial</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentTenants.map((tenant) => (
+                  <tr key={tenant.id}>
+                    <td>
+                      <span className="entity-main">
+                        <strong>{tenant.name}</strong>
+                        <small>{tenant.slug}</small>
+                      </span>
+                    </td>
+                    <td>{[tenant.city, tenant.country].filter(Boolean).join(", ") || "Not set"}</td>
+                    <td><span className={`badge ${getTenantStatusClass(tenant)}`}>{getTenantStatusLabel(tenant.status)}</span></td>
+                    <td>{tenant.isTrial ? <span className="badge warn">Trial</span> : <span className="badge good">Live</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {!recentTenants.length && (
+              <div className="empty-state">
+                <strong>No tenants yet</strong>
+                Create your first tenant to start using the platform.
+              </div>
+            )}
+          </div>
+        </article>
+
+        <article className="superadmin-card span-5">
+          <div className="panel-title">
+            <div>
+              <h2>Tenants by country</h2>
+              <p>Simple distribution based on tenant profile data.</p>
+            </div>
+          </div>
+
+          <div className="bar-list">
+            {countryStats.map((item) => (
+              <div className="bar-row" key={item.label}>
+                <div className="bar-meta">
+                  <span>{item.label}</span>
+                  <strong>{item.count}</strong>
+                </div>
+                <div className="bar-track">
+                  <div className="bar-fill" style={{ width: `${(item.count / maxCountryCount) * 100}%` }} />
+                </div>
+              </div>
+            ))}
+
+            {!countryStats.length && (
+              <div className="empty-state">
+                <strong>No country data</strong>
+                Add country values when creating tenants.
+              </div>
+            )}
+          </div>
+        </article>
+
+        <article className="superadmin-card span-12">
+          <div className="panel-title">
+            <div>
+              <h2>Quick actions</h2>
+              <p>Only platform-level actions belong here.</p>
+            </div>
+          </div>
+
+          <div className="quick-grid">
+            <Link className="quick-tile" to="/superadmin/tenants">
+              <FaStore />
+              <span><strong>Manage tenants</strong><br />Create, edit and disable tenant accounts.</span>
+            </Link>
+            <Link className="quick-tile" to="/superadmin/tenant-domains">
+              <FaEnvelope />
+              <span><strong>Email domains</strong><br />Control automatic role mapping by domain.</span>
+            </Link>
+            <Link className="quick-tile" to="/superadmin/tenant-admins">
+              <FaUsers />
+              <span><strong>Tenant admins</strong><br />Create the first admin for a tenant.</span>
+            </Link>
+            <Link className="quick-tile" to="/superadmin/impersonate">
+              <FaUserSecret />
+              <span><strong>Impersonate</strong><br />Start a controlled support session.</span>
+            </Link>
+          </div>
         </article>
       </div>
-
-      <article className="panel quick-actions module-directory">
-        <div className="panel-title">
-          <h2>Platform Modules</h2>
-        </div>
-        <div className="quick-grid">
-          {modules.map((module) => {
-            const Icon = module.icon;
-            return (
-              <Link to={module.path} key={module.label}>
-                <Icon />
-                <span>{module.label}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </article>
     </section>
   );
 }
-
-export default SuperAdminDashboardPage;
