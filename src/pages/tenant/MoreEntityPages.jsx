@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import DynamicTable from "../../components/DynamicTable.jsx";
 import EntityCrudPage from "../../components/crud/EntityCrudPage";
 import { createCrudService, localCrudService } from "../../services/crudService";
+import { aiService } from "../../services/aiService";
 import { eventsService } from "../../services/eventsService";
 import { eventSectionsService } from "../../services/eventSectionsService";
 import { mergedCrudService } from "../../services/purchaseRecordsService";
@@ -979,12 +980,16 @@ export function ReviewsPage() {
   const [reviews, setReviews] = useState([]);
   const [users, setUsers] = useState([]);
   const [eventId, setEventId] = useState("");
+  const [reviewSummary, setReviewSummary] = useState("");
   const [loading, setLoading] = useState(false);
+  const [summaryLoading, setSummaryLoading] = useState(false);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
 
   const loadReviews = useCallback(async () => {
     setLoading(true);
     setError("");
+    setMessage("");
 
     try {
       const [eventsData, reviewsData, usersData] = await Promise.all([
@@ -1025,6 +1030,44 @@ export function ReviewsPage() {
   const visibleReviews = useMemo(() => {
     return reviews.filter((review) => !eventId || String(review.eventId) === String(eventId));
   }, [reviews, eventId]);
+
+  const selectedEventName = eventId ? eventNameById[String(eventId)] || "Selected event" : "";
+
+  const generateReviewSummary = async () => {
+    if (!eventId) {
+      setError("Select an event first.");
+      return;
+    }
+
+    setSummaryLoading(true);
+    setError("");
+    setMessage("");
+    setReviewSummary("");
+
+    try {
+      const result = await aiService.getReviewSummary(eventId);
+      const response = result.response?.trim();
+
+      if (!response) {
+        setError("AI did not return a review summary. Try again.");
+        return;
+      }
+
+      setReviewSummary(response);
+      setMessage("AI review summary generated.");
+    } catch (err) {
+      setError(handleApiError(err));
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+
+  const handleEventChange = (value) => {
+    setEventId(value);
+    setReviewSummary("");
+    setError("");
+    setMessage("");
+  };
 
   const stats = useMemo(() => {
     const total = visibleReviews.length;
@@ -1079,6 +1122,13 @@ export function ReviewsPage() {
     [rows]
   );
 
+  const reviewSummaryLines = useMemo(() => {
+    return reviewSummary
+      .split(/\n+/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+  }, [reviewSummary]);
+
   const columns = [
     { key: "eventTitle", label: "Event" },
     { key: "ratingText", label: "Rating" },
@@ -1100,11 +1150,12 @@ export function ReviewsPage() {
       </div>
 
       {error && <div className="form-alert">{error}</div>}
+      {message && <div className="form-alert success">{message}</div>}
 
       <div className="dynamic-form attendees-filter">
         <div className="form-field">
           <label>Event</label>
-          <select value={eventId} onChange={(event) => setEventId(event.target.value)}>
+          <select value={eventId} onChange={(event) => handleEventChange(event.target.value)}>
             <option value="">All events</option>
             {events.map((event) => (
               <option key={event.id} value={event.id}>
@@ -1113,7 +1164,35 @@ export function ReviewsPage() {
             ))}
           </select>
         </div>
+        <div className="form-field">
+          <label>AI Summary</label>
+          <button
+            className="primary-button"
+            type="button"
+            disabled={!eventId || summaryLoading}
+            onClick={generateReviewSummary}
+          >
+            {summaryLoading ? "Summarizing..." : "Summarize Reviews"}
+          </button>
+        </div>
       </div>
+
+      {reviewSummary && (
+        <div className="ai-summary-panel">
+          <div className="ai-summary-header">
+            <div>
+              <span>AI Insight</span>
+              <h2>Review Summary{selectedEventName ? ` - ${selectedEventName}` : ""}</h2>
+            </div>
+            <small>Max 1000 words</small>
+          </div>
+          <div className="ai-summary-body">
+            {reviewSummaryLines.map((line, index) => (
+              <p key={`${line}-${index}`}>{line}</p>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="attendees-stats">
         <article className="attendee-stat-card">

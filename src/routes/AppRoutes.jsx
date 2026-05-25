@@ -29,6 +29,7 @@ import DashboardPage from "../pages/tenant/DashboardPage";
 import EventCategoriesPage from "../pages/tenant/EventCategoriesPage";
 import EventsPage from "../pages/tenant/EventsPage";
 import EventSectionsPage from "../pages/tenant/EventSectionsPage";
+import ReportsPage from "../pages/tenant/ReportsPage";
 import StaffPage from "../pages/tenant/StaffPage";
 import {
   AIRequestsPage,
@@ -52,7 +53,6 @@ import {
 import VenueSectionsPage from "../pages/tenant/VenueSectionsPage";
 import VenuesPage from "../pages/tenant/VenuesPage";
 import TenantAdminsPage from "../pages/superadmin/TenantAdminsPage";
-import AIStudioPage from "../pages/tenant/AIStudioPage";
 
 const StartRedirect = () => {
   return <Navigate to={startupPathFromToken()} replace />;
@@ -101,11 +101,9 @@ function AppRoutes() {
           <Route path="check-in" element={<CheckInsPage />} />
           <Route path="notifications" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><NotificationsPage /></TenantAccessRoute>} />
           <Route path="reviews" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><ReviewsPage /></TenantAccessRoute>} />
-          <Route path="ai-studio" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><AIStudioPage /></TenantAccessRoute>} />
           <Route path="roles" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><RolesPage /></TenantAccessRoute>} />
           <Route path="user-roles" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><UserRolesPage /></TenantAccessRoute>} />
-          <Route path="reports" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><AuditLogsPage /></TenantAccessRoute>} />
-          <Route path="settings" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><PaymentMethodsPage /></TenantAccessRoute>} />
+          <Route path="reports" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><ReportsPage /></TenantAccessRoute>} />
         </Route>
       </Route>
       <Route path="/dashboard" element={<Navigate to="/tenant" replace />} />

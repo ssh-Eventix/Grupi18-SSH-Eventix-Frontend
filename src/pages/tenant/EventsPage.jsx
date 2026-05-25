@@ -99,6 +99,36 @@ export default function EventsPage() {
     setMessage("AI description generated.");
   };
 
+  const generateMarketing = async ({ form, updateField, setError, setMessage }) => {
+    const eventTitle = form.title?.trim();
+    const eventDescription = form.description?.trim();
+
+    if (!eventTitle) {
+      setError("Add an event title before generating marketing content.");
+      return;
+    }
+
+    if (!eventDescription) {
+      setError("Add or generate an event description first.");
+      return;
+    }
+
+    const result = await aiService.generateMarketing({
+      eventTitle,
+      eventDescription,
+    });
+
+    const response = result.response?.trim();
+
+    if (!response) {
+      setError("AI did not return marketing content. Try again.");
+      return;
+    }
+
+    updateField("marketingCopy", response);
+    setMessage("AI marketing content generated.");
+  };
+
   const fields = [
     {
       name: "venueId",
@@ -134,6 +164,20 @@ export default function EventsPage() {
         title: "Generate description with AI",
         icon: FaBrain,
         onClick: generateDescription,
+      },
+    },
+    {
+      name: "marketingCopy",
+      label: "Marketing Copy",
+      type: "textarea",
+      rows: 7,
+      fullWidth: true,
+      action: {
+        label: "AI Marketing",
+        loadingLabel: "Generating...",
+        title: "Generate marketing content with AI",
+        icon: FaBrain,
+        onClick: generateMarketing,
       },
     },
     { name: "organizerName", label: "Organizer" },
@@ -192,6 +236,7 @@ export default function EventsPage() {
         title: "",
         slug: "",
         description: "",
+        marketingCopy: "",
         organizerName: "",
         startUtc: "",
         endUtc: "",
