@@ -65,11 +65,11 @@ export const eventsApi = {
       try {
         return await getEventsFrom(url, { search, tenantSlug });
       } catch {
-        // Try the next supported endpoint before falling back to local demo events.
+        // Try the next supported endpoint before returning an empty dynamic list.
       }
     }
 
-    return buyerEvents;
+    return [];
   },
 
   async getById(id, { tenantSlug, publicOnly = false } = {}) {
@@ -93,6 +93,6 @@ export const eventsApi = {
       return events.find((event) => event.id === id || event.backendId === id) || null;
     }
 
-    return buyerEvents.find((event) => event.id === id) || null;
+    return null;
   },
 };
