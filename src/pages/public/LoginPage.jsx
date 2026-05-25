@@ -12,7 +12,16 @@ import { handleApiError } from "../../utils/apiErrorHandler";
 import {
   defaultPathForRole,
   startupPathFromToken,
+  getUserFromToken,
 } from "../../utils/routeDestinations";
+
+function normalizeRole(role) {
+  return String(role || "")
+    .trim()
+    .toLowerCase()
+    .replaceAll(" ", "")
+    .replaceAll("_", "");
+}
 
 function LoginPage() {
   const { isAuthenticated, login } = useAuth();
@@ -31,13 +40,9 @@ function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const redirectTo = location.state?.from
-    ? `${location.state.from.pathname || ""}${location.state.from.search || ""}`
-    : "";
-
-if (isAuthenticated && !location.state?.forceAuthPrompt) {
-  return <Navigate to={startupPathFromToken()} replace />;
-}
+  if (isAuthenticated && !location.state?.forceAuthPrompt) {
+    return <Navigate to={startupPathFromToken()} replace />;
+  }
 
   const updateField = (name, value) => {
     setValues((prev) => ({ ...prev, [name]: value }));
@@ -45,38 +50,41 @@ if (isAuthenticated && !location.state?.forceAuthPrompt) {
   };
 
   const handleSubmit = async (event) => {
-  event.preventDefault();
-  setError("");
-  setLoading(true);
+    event.preventDefault();
+    setError("");
+    setLoading(true);
 
-  try {
-    const response = await login({
-      email: values.email.trim(),
-      password: values.password,
-      tenantSlug: values.tenantSlug.trim(),
-    });
+    try {
+      const tenantSlug = values.tenantSlug.trim();
 
-    if (response.tenantSlugRequired) {
-      setShowTenantSlug(true);
+      const response = await login({
+        email: values.email.trim(),
+        password: values.password,
+        tenantSlug,
+      });
 
-      if (!values.tenantSlug.trim()) {
-        setError("This is a tenant user. Please enter tenant slug.");
-      } else {
-        setError("Tenant slug is missing or incorrect.");
+      if (response?.tenantSlugRequired) {
+        setShowTenantSlug(true);
+        setError(
+          tenantSlug
+            ? "Tenant slug is missing or incorrect."
+            : "This is a tenant user. Please enter tenant slug."
+        );
+        return;
       }
 
-      return;
+      const tokenUser = getUserFromToken(response?.token);
+      const role = normalizeRole(tokenUser?.role || response?.user?.role);
+
+      const path = defaultPathForRole(role);
+
+      navigate(path || "/login", { replace: true });
+    } catch (err) {
+      setError(handleApiError(err) || "Login failed. Check your details.");
+    } finally {
+      setLoading(false);
     }
-
-    const role = response.user?.role || response.role;
-
-    navigate(redirectTo || defaultPathForRole(role), { replace: true });
-  } catch (err) {
-    setError(handleApiError(err) || "Login failed. Check your details.");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   return (
     <main className="auth-page">
@@ -85,6 +93,7 @@ if (isAuthenticated && !location.state?.forceAuthPrompt) {
           <span>
             <FaUserCircle />
           </span>
+
           <div>
             <h1>Welcome back</h1>
             <p>
@@ -124,6 +133,7 @@ if (isAuthenticated && !location.state?.forceAuthPrompt) {
                 type={showPassword ? "text" : "password"}
                 value={values.password}
               />
+
               <button
                 type="button"
                 onClick={() => setShowPassword((value) => !value)}
@@ -157,11 +167,7 @@ if (isAuthenticated && !location.state?.forceAuthPrompt) {
             disabled={loading}
             type="submit"
           >
-            {loading
-              ? "Logging in..."
-              : showTenantSlug
-              ? "Continue"
-              : "Log in"}
+            {loading ? "Logging in..." : showTenantSlug ? "Continue" : "Log in"}
           </button>
         </form>
 
