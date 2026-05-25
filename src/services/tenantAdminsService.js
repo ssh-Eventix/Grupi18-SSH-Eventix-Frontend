@@ -1,17 +1,19 @@
-import api from "./api"
+import api from "./api";
 
 const URL = "/TenantAdmins";
 
 export const tenantAdminsService = {
-    create: async (data) => {
-        const response = await api.post(URL, {
-            tenantId: data.tenantId,
-            firstName: data.firstName,
-            lastName: data.lastName,
-            email: data.email,
-            password: data.password,
-        });
+  create: async (data) => {
+    const response = await api.post(URL, {
+      tenantId: data.tenantId,
+      firstName: String(data.firstName || "").trim(),
+      lastName: String(data.lastName || "").trim(),
+      email: String(data.email || "").trim().toLowerCase(),
+      password: data.password,
+    });
 
-        return response.data;
-    },
+    return response.data;
+  },
 };
+
+export default tenantAdminsService;
