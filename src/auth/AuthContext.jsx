@@ -160,6 +160,47 @@ export const AuthProvider = ({ children }) => {
     if (redirectTo) window.location.replace(redirectTo);
   };
 
+  const impersonate = (jwtToken, tenantSlug) => {
+    const tokenUser = getUserFromToken(jwtToken);
+
+    const role = normalizeRole(tokenUser?.role);
+
+    const finalUser = {
+      ...tokenUser,
+      role,
+      tenantSlug: tenantSlug || tokenUser?.tenantSlug || null,
+    };
+
+    localStorage.setItem("token", jwtToken);
+    localStorage.setItem("user", JSON.stringify(finalUser));
+
+    if (finalUser.tenantSlug) {
+      localStorage.setItem("tenantSlug", finalUser.tenantSlug);
+    } else {
+      localStorage.removeItem("tenantSlug");
+    }
+
+    setToken(jwtToken);
+    setTenantSlug(finalUser.tenantSlug);
+    setUser(finalUser);
+  };
+
+  const stopImpersonation = () => {
+    const superAdminToken = localStorage.getItem("superAdminToken");
+
+    if (superAdminToken) {
+      localStorage.setItem("token", superAdminToken);
+      setToken(superAdminToken);
+      setUser(getUserFromToken(superAdminToken));
+    }
+
+    localStorage.removeItem("superAdminToken");
+    localStorage.removeItem("impersonationSessionId");
+    localStorage.removeItem("tenantSlug");
+
+    setTenantSlug(null);
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -172,6 +213,8 @@ export const AuthProvider = ({ children }) => {
         register,
         logout,
         setTenantSlug,
+        impersonate,
+        stopImpersonation,
       }}
     >
       {children}
