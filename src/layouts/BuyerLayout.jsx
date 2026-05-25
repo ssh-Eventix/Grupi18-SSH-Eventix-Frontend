@@ -5,14 +5,12 @@ import {
   FaCog,
   FaHeart,
   FaReceipt,
-  FaSearch,
   FaTicketAlt,
   FaUser,
 } from "react-icons/fa";
 
 const links = [
   { path: "/buyer", label: "Discover", icon: FaCompass, end: true },
-  { path: "/buyer/categories", label: "Categories", icon: FaSearch },
   { path: "/buyer/top-events", label: "Top Events", icon: FaCalendarAlt },
   { path: "/buyer/weekend", label: "This Weekend", icon: FaTicketAlt },
   { path: "/buyer/free-events", label: "Free Events", icon: FaReceipt },

@@ -1,16 +1,26 @@
 import api from "../api/axios";
+import { getTicketInventoryAdjustment } from "./buyerStorage";
 
 const TICKET_TYPE_URL = "/TicketType";
 const EVENTS_URL = "/Events";
 
-const normalizeTicketType = (ticketType, eventId) => ({
-  ...ticketType,
-  eventId: ticketType.eventId ?? eventId,
-  eventSectionId: ticketType.eventSectionId ?? "",
-  price: Number(ticketType.price ?? 0),
-  quantityAvailable: Number(ticketType.quantityAvailable ?? 0),
-  soldQuantity: Number(ticketType.soldQuantity ?? 0),
-});
+const normalizeTicketType = (ticketType, eventId) => {
+  const rawAvailable = Number(ticketType.quantityAvailable ?? 0);
+  const adjustment = getTicketInventoryAdjustment(ticketType.id);
+  const shouldApplyLocalPurchase =
+    Number(adjustment.purchased || 0) > 0 &&
+    (adjustment.lastKnownAvailable === null || rawAvailable >= Number(adjustment.lastKnownAvailable));
+  const localPurchased = shouldApplyLocalPurchase ? Number(adjustment.purchased || 0) : 0;
+
+  return {
+    ...ticketType,
+    eventId: ticketType.eventId ?? eventId,
+    eventSectionId: ticketType.eventSectionId ?? "",
+    price: Number(ticketType.price ?? 0),
+    quantityAvailable: Math.max(0, rawAvailable - localPurchased),
+    soldQuantity: Number(ticketType.soldQuantity ?? 0) + localPurchased,
+  };
+};
 
 const toUtcIso = (value) => {
   if (!value) return value;
