@@ -23,7 +23,7 @@ api.interceptors.request.use((config) => {
   }
 
   const token = localStorage.getItem("token");
-  const tenantSlug = localStorage.getItem("tenantSlug");
+  const tenantSlug = config.headers["X-Tenant-Slug"] || localStorage.getItem("tenantSlug");
 
   if (token) config.headers.Authorization = `Bearer ${token}`;
   if (tenantSlug) config.headers["X-Tenant-Slug"] = tenantSlug;
