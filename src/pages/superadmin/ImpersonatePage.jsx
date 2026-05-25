@@ -3,6 +3,8 @@ import { FaClock, FaRedo, FaUserSecret } from "react-icons/fa";
 import { tenantsService } from "../../services/tenantsService";
 import { impersonationService } from "../../services/impersonationService";
 import { handleApiError } from "../../utils/apiErrorHandler";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../auth/AuthContext";
 import "./SuperAdmin.css";
 
 const initialForm = { targetTenantId: "", targetPublicUserId: "", minutes: 10, reason: "" };
@@ -17,6 +19,8 @@ export default function ImpersonatePage() {
   const [success, setSuccess] = useState("");
   const [loadingTenants, setLoadingTenants] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const navigate = useNavigate();
+  const { impersonate, stopImpersonation } = useAuth();
 
   const selectedTenant = useMemo(
     () => tenants.find((tenant) => tenant.id === form.targetTenantId),
@@ -58,41 +62,63 @@ export default function ImpersonatePage() {
     setSuccess("");
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setSubmitting(true);
-    setError("");
-    setSuccess("");
+const handleSubmit = async (event) => {
+  event.preventDefault();
+  setSubmitting(true);
+  setError("");
+  setSuccess("");
+  setResult(null);
+
+  try {
+    const response = await impersonationService.start({
+      ...form,
+      minutes: Number(form.minutes),
+    });
+
+    const tenantSlug = selectedTenant?.slug;
+
+    localStorage.setItem("superAdminToken", localStorage.getItem("token"));
+    localStorage.setItem(
+      "impersonationSessionId",
+      response.impersonationSessionId
+    );
+
+    impersonate(response.accessToken, tenantSlug);
+
+    setResult(response);
+    setSuccess("Impersonation session started.");
+
+    navigate("/tenant", { replace: true });
+  } catch (err) {
+    setError(handleApiError(err));
+  } finally {
+    setSubmitting(false);
+  }
+};
+
+const handleStop = async () => {
+  const sessionId = localStorage.getItem("impersonationSessionId");
+
+  if (!sessionId) return;
+
+  setSubmitting(true);
+  setError("");
+
+  try {
+    await impersonationService.stop(sessionId);
+
+    stopImpersonation();
+
     setResult(null);
+    setSuccess("Impersonation session stopped.");
 
-    try {
-      const response = await impersonationService.start({ ...form, minutes: Number(form.minutes) });
-      setResult(response);
-      setSuccess("Impersonation session started.");
-      setForm(initialForm);
-    } catch (err) {
-      setError(handleApiError(err));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleStop = async () => {
-    if (!result?.sessionId) return;
-
-    setSubmitting(true);
-    setError("");
-
-    try {
-      await impersonationService.stop(result.sessionId);
-      setResult(null);
-      setSuccess("Impersonation session stopped.");
-    } catch (err) {
-      setError(handleApiError(err));
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    navigate("/superadmin/impersonate", { replace: true });
+  } catch (err) {
+    setError(handleApiError(err));
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   return (
     <section className="superadmin-page">
@@ -165,7 +191,7 @@ export default function ImpersonatePage() {
               <button className="primary-action" type="submit" disabled={submitting || loadingTenants}>
                 {submitting ? "Starting..." : "Start impersonation"}
               </button>
-              {result?.sessionId && (
+              {result?.impersonationSessionId && (
                 <button className="danger-action" type="button" onClick={handleStop} disabled={submitting}>
                   Stop session
                 </button>
@@ -195,8 +221,13 @@ export default function ImpersonatePage() {
           {result && (
             <div className="info-box compact">
               <strong>Active session</strong>
-              {result.expiresAtUtc && <span>Expires: {new Date(result.expiresAtUtc).toLocaleString()}</span>}
-              {result.impersonationToken && <span>Token received from API.</span>}
+              {result.accessTokenExpiresAtUtc && (
+                  <span>
+                    Expires:{" "}
+                    {new Date(result.accessTokenExpiresAtUtc).toLocaleString()}
+                  </span>
+                )}
+              {result.accessToken && <span>Token received from API.</span>}
             </div>
           )}
         </aside>
