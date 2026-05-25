@@ -123,7 +123,7 @@ function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<Register />} />
       <Route path="*" element={<StartRedirect />} />
-      <Route path="/unauthorized" element={<Navigate to="/buyer" replace />} />
+      <Route path="/unauthorized" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
