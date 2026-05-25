@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import RoleRoute from "../routes/RoleRoute";
+import TenantAccessRoute from "../routes/TenantAccessRoute";
 import ImpersonatePage from "../pages/superadmin/ImpersonatePage";
 import BuyerLayout from "../layouts/BuyerLayout";
 import SuperAdminLayout from "../layouts/SuperAdminLayout";
@@ -28,6 +29,7 @@ import DashboardPage from "../pages/tenant/DashboardPage";
 import EventCategoriesPage from "../pages/tenant/EventCategoriesPage";
 import EventsPage from "../pages/tenant/EventsPage";
 import EventSectionsPage from "../pages/tenant/EventSectionsPage";
+import ReportsPage from "../pages/tenant/ReportsPage";
 import StaffPage from "../pages/tenant/StaffPage";
 import {
   AIRequestsPage,
@@ -51,7 +53,6 @@ import {
 import VenueSectionsPage from "../pages/tenant/VenueSectionsPage";
 import VenuesPage from "../pages/tenant/VenuesPage";
 import TenantAdminsPage from "../pages/superadmin/TenantAdminsPage";
-import AIStudioPage from "../pages/tenant/AIStudioPage";
 
 const StartRedirect = () => {
   return <Navigate to={startupPathFromToken()} replace />;
@@ -82,29 +83,27 @@ function AppRoutes() {
       <Route element={<RoleRoute allowedRoles={["Admin", "TenantAdmin", "Staff"]} />}>
         <Route path="/tenant" element={<TenantLayout />}>
           <Route index element={<DashboardPage />} />
-          <Route path="events" element={<EventsPage />} />
-          <Route path="create-event" element={<EventsPage />} />
-          <Route path="event-categories" element={<EventCategoriesPage />} />
-          <Route path="event-sections" element={<EventSectionsPage />} />
-          <Route path="event-sessions" element={<EventSessionsPage />} />
-          <Route path="speakers" element={<SpeakersPage />} />
-          <Route path="coupons" element={<CouponsPage />} />
-          <Route path="venues" element={<VenuesPage />} />
-          <Route path="venue-sections" element={<VenueSectionsPage />} />
-          <Route path="tickets" element={<TicketTypesPage />} />
+          <Route path="events" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><EventsPage /></TenantAccessRoute>} />
+          <Route path="create-event" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><EventsPage /></TenantAccessRoute>} />
+          <Route path="event-categories" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><EventCategoriesPage /></TenantAccessRoute>} />
+          <Route path="event-sections" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><EventSectionsPage /></TenantAccessRoute>} />
+          <Route path="event-sessions" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><EventSessionsPage /></TenantAccessRoute>} />
+          <Route path="speakers" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><SpeakersPage /></TenantAccessRoute>} />
+          <Route path="coupons" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><CouponsPage /></TenantAccessRoute>} />
+          <Route path="venues" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><VenuesPage /></TenantAccessRoute>} />
+          <Route path="venue-sections" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><VenueSectionsPage /></TenantAccessRoute>} />
+          <Route path="tickets" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><TicketTypesPage /></TenantAccessRoute>} />
           <Route path="orders" element={<BookingsPage />} />
-          <Route path="payments" element={<PaymentsPage />} />
-          <Route path="payment-methods" element={<PaymentMethodsPage />} />
+          <Route path="payments" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><PaymentsPage /></TenantAccessRoute>} />
+          <Route path="payment-methods" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><PaymentMethodsPage /></TenantAccessRoute>} />
           <Route path="attendees" element={<AttendeesPage />} />
-          <Route path="staff" element={<StaffPage />} />
+          <Route path="staff" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><StaffPage /></TenantAccessRoute>} />
           <Route path="check-in" element={<CheckInsPage />} />
-          <Route path="notifications" element={<NotificationsPage />} />
-          <Route path="reviews" element={<ReviewsPage />} />
-          <Route path="ai-studio" element={<AIStudioPage />} />
-          <Route path="roles" element={<RolesPage />} />
-          <Route path="user-roles" element={<UserRolesPage />} />
-          <Route path="reports" element={<AuditLogsPage />} />
-          <Route path="settings" element={<PaymentMethodsPage />} />
+          <Route path="notifications" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><NotificationsPage /></TenantAccessRoute>} />
+          <Route path="reviews" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><ReviewsPage /></TenantAccessRoute>} />
+          <Route path="roles" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><RolesPage /></TenantAccessRoute>} />
+          <Route path="user-roles" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><UserRolesPage /></TenantAccessRoute>} />
+          <Route path="reports" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><ReportsPage /></TenantAccessRoute>} />
         </Route>
       </Route>
       <Route path="/dashboard" element={<Navigate to="/tenant" replace />} />
