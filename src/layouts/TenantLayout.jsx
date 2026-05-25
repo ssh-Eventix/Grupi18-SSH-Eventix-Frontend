@@ -15,7 +15,7 @@ import {
 } from "react-icons/fa";
 import { useAuth } from "../auth/AuthContext";
 
-const links = [
+const adminLinks = [
   { path: "/tenant", label: "Overview", icon: FaChartBar, end: true },
   { path: "/tenant/events", label: "Events", icon: FaRegCalendarAlt },
   { path: "/tenant/tickets", label: "Tickets", icon: FaCreditCard },
@@ -29,9 +29,25 @@ const links = [
   { path: "/tenant/settings", label: "Settings", icon: FaCog },
 ];
 
+const staffLinks = [
+  { path: "/tenant", label: "Overview", icon: FaChartBar, end: true },
+  { path: "/tenant/check-in", label: "Check-in", icon: FaQrcode },
+  { path: "/tenant/attendees", label: "Attendees", icon: FaUsers },
+  { path: "/tenant/orders", label: "Orders", icon: FaClipboardList },
+];
+
+const normalizeRole = (role) =>
+  String(role || "")
+    .trim()
+    .toLowerCase()
+    .replaceAll(" ", "")
+    .replaceAll("_", "");
+
 const TenantLayout = () => {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
+  const isStaff = normalizeRole(user?.role) === "staff";
+  const links = isStaff ? staffLinks : adminLinks;
 
   const handleLogout = () => {
     logout();
@@ -71,7 +87,7 @@ const TenantLayout = () => {
       <main className="workspace">
         <div className="role-ribbon tenant-ribbon">
           <FaUsers />
-          <span>TENANT (Event Organizer)</span>
+          <span>{isStaff ? "STAFF (Event Operations)" : "TENANT (Event Organizer)"}</span>
         </div>
         <Outlet />
       </main>

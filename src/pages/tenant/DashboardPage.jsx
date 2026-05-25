@@ -9,6 +9,7 @@ import {
   FaWallet,
 } from "react-icons/fa";
 import { Link } from "react-router-dom";
+import { useAuth } from "../../auth/AuthContext";
 
 const stats = [
   { label: "Total Events", value: "12", note: "+2 this month", icon: FaCalendarAlt },
@@ -60,22 +61,43 @@ const actions = [
   { label: "Venue Sections", path: "/tenant/venue-sections", icon: FaCalendarAlt },
 ];
 
+const staffActions = [
+  { label: "Check-ins", path: "/tenant/check-in", icon: FaQrcode },
+  { label: "Attendees", path: "/tenant/attendees", icon: FaUsers },
+  { label: "Orders", path: "/tenant/orders", icon: FaWallet },
+];
+
+const normalizeRole = (role) =>
+  String(role || "")
+    .trim()
+    .toLowerCase()
+    .replaceAll(" ", "")
+    .replaceAll("_", "");
+
 const chartPoints = "0,92 38,62 76,50 114,76 152,64 190,38 228,22 266,28 304,10";
 
 function DashboardPage() {
+  const { user } = useAuth();
+  const isStaff = normalizeRole(user?.role) === "staff";
+  const visibleActions = isStaff ? staffActions : actions;
+
   return (
     <section className="dashboard-page">
       <header className="dashboard-header">
         <div>
           <h1>Dashboard</h1>
-          <p>Welcome back! Here's what's happening with your events.</p>
+          <p>
+            {isStaff
+              ? "Welcome back! Here are the tools you need for event operations."
+              : "Welcome back! Here's what's happening with your events."}
+          </p>
         </div>
         <div className="profile-chip">
           <span className="notification-dot">3</span>
           <span className="avatar">AE</span>
           <div>
             <strong>Arne Events</strong>
-            <small>Organization Admin</small>
+            <small>{isStaff ? "Event Staff" : "Organization Admin"}</small>
           </div>
         </div>
       </header>
@@ -145,7 +167,7 @@ function DashboardPage() {
           <h2>Quick Actions</h2>
         </div>
         <div className="quick-grid">
-          {actions.map((action) => {
+          {visibleActions.map((action) => {
             const Icon = action.icon;
             return (
               <Link to={action.path} key={action.label}>

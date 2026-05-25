@@ -5,8 +5,10 @@ import { createCrudService, localCrudService } from "../../services/crudService"
 import { eventsService } from "../../services/eventsService";
 import { eventSectionsService } from "../../services/eventSectionsService";
 import { mergedCrudService } from "../../services/purchaseRecordsService";
+import { reviewsService } from "../../services/reviewsService";
 import { ticketService } from "../../services/ticketService";
 import { ticketTypeService } from "../../services/ticketTypeService";
+import { usersService } from "../../services/usersService";
 import { handleApiError } from "../../utils/apiErrorHandler";
 
 const uuid = "00000000-0000-0000-0000-000000000000";
@@ -973,19 +975,183 @@ export function NotificationsPage() {
 }
 
 export function ReviewsPage() {
+  const [events, setEvents] = useState([]);
+  const [reviews, setReviews] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [eventId, setEventId] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const loadReviews = useCallback(async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const [eventsData, reviewsData, usersData] = await Promise.all([
+        eventsService.getAll(),
+        reviewsService.getAll(),
+        usersService.getAll(),
+      ]);
+
+      setEvents(Array.isArray(eventsData) ? eventsData : eventsData?.data ?? []);
+      setReviews(Array.isArray(reviewsData) ? reviewsData : []);
+      setUsers(Array.isArray(usersData) ? usersData : usersData?.data ?? []);
+    } catch (err) {
+      setError(handleApiError(err));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadReviews();
+  }, [loadReviews]);
+
+  const eventNameById = useMemo(() => {
+    return events.reduce((map, event) => {
+      map[String(event.id)] = event.title || event.name;
+      return map;
+    }, {});
+  }, [events]);
+
+  const userNameById = useMemo(() => {
+    return users.reduce((map, user) => {
+      const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
+      map[String(user.id)] = fullName || user.email || user.id;
+      return map;
+    }, {});
+  }, [users]);
+
+  const visibleReviews = useMemo(() => {
+    return reviews.filter((review) => !eventId || String(review.eventId) === String(eventId));
+  }, [reviews, eventId]);
+
+  const stats = useMemo(() => {
+    const total = visibleReviews.length;
+    const average = total
+      ? visibleReviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) / total
+      : 0;
+    const fiveStar = visibleReviews.filter((review) => Number(review.rating) === 5).length;
+    const lowRating = visibleReviews.filter((review) => Number(review.rating) <= 2).length;
+
+    return {
+      total,
+      average: average.toFixed(1),
+      fiveStar,
+      lowRating,
+    };
+  }, [visibleReviews]);
+
+  const rows = useMemo(() => {
+    return visibleReviews.map((review) => ({
+      ...review,
+      eventTitle: eventNameById[String(review.eventId)] || review.eventId,
+      userName: userNameById[String(review.userId)] || review.userId,
+      ratingText: `${review.rating}/5`,
+      createdAtText: review.createdAt ? new Date(review.createdAt).toLocaleString() : "",
+      commentText: review.comment || "",
+    }));
+  }, [visibleReviews, eventNameById, userNameById]);
+
+  const fetchReviews = useCallback(
+    async (page, pageSize, search) => {
+      const term = search.trim().toLowerCase();
+      const filtered = rows.filter((review) =>
+        [
+          review.eventTitle,
+          review.userName,
+          review.ratingText,
+          review.commentText,
+          review.createdAtText,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(term)
+      );
+      const start = (page - 1) * pageSize;
+
+      return {
+        data: filtered.slice(start, start + pageSize),
+        totalPages: Math.ceil(filtered.length / pageSize) || 1,
+      };
+    },
+    [rows]
+  );
+
+  const columns = [
+    { key: "eventTitle", label: "Event" },
+    { key: "ratingText", label: "Rating" },
+    { key: "commentText", label: "Comment" },
+    { key: "userName", label: "User" },
+    { key: "createdAtText", label: "Created" },
+  ];
+
   return (
-    <EntityCrudPage
-      title="Reviews"
-      description="Collect attendee ratings and comments after events."
-      api={createCrudService("/Review", { createOnly: true })}
-      initialForm={{ eventId: uuid, userId: uuid, rating: 5, comment: "" }}
-      fields={[
-        text("eventId", "Event ID"),
-        text("userId", "User ID"),
-        number("rating", "Rating"),
-        area("comment", "Comment"),
-      ]}
-    />
+    <section className="page crud-page">
+      <div className="crud-header">
+        <div>
+          <h1>Reviews</h1>
+          <p>Monitor attendee feedback and rating trends by event.</p>
+        </div>
+        <button type="button" onClick={loadReviews} disabled={loading}>
+          {loading ? "Refreshing..." : "Refresh"}
+        </button>
+      </div>
+
+      {error && <div className="form-alert">{error}</div>}
+
+      <div className="dynamic-form attendees-filter">
+        <div className="form-field">
+          <label>Event</label>
+          <select value={eventId} onChange={(event) => setEventId(event.target.value)}>
+            <option value="">All events</option>
+            {events.map((event) => (
+              <option key={event.id} value={event.id}>
+                {event.title || event.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="attendees-stats">
+        <article className="attendee-stat-card">
+          <span>Total reviews</span>
+          <strong>{stats.total}</strong>
+          <small>Feedback received</small>
+        </article>
+        <article className="attendee-stat-card">
+          <span>Average rating</span>
+          <strong>{stats.average}</strong>
+          <small>Out of 5 stars</small>
+        </article>
+        <article className="attendee-stat-card">
+          <span>5-star reviews</span>
+          <strong>{stats.fiveStar}</strong>
+          <small>Best feedback</small>
+        </article>
+        <article className="attendee-stat-card">
+          <span>Low ratings</span>
+          <strong>{stats.lowRating}</strong>
+          <small>Needs attention</small>
+        </article>
+      </div>
+
+      {loading ? (
+        <div className="table-panel">
+          <p>Loading reviews...</p>
+        </div>
+      ) : (
+        <DynamicTable
+          columns={columns}
+          fetchData={fetchReviews}
+          defaultPageSize={5}
+          pageSizeOptions={[5, 10, 20]}
+          refreshKey={`${eventId}-${reviews.length}-${users.length}-${loading}`}
+        />
+      )}
+    </section>
   );
 }
 
