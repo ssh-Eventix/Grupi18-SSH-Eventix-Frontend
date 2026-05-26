@@ -14,7 +14,11 @@ if (url.includes("/Events/public")) {
   return config;
 }
 
-  if (url.includes("/auth/register")) {
+  if (
+    url.includes("/auth/register") ||
+    url.includes("/auth/forgot-password") ||
+    url.includes("/auth/reset-password")
+  ) {
     delete config.headers.Authorization;
     delete config.headers["X-Tenant-Slug"];
     return config;

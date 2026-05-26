@@ -171,6 +171,10 @@ function LoginPage() {
           </button>
         </form>
 
+        <p className="auth-helper-link">
+          <Link to="/forgot-password">Forgot password?</Link>
+        </p>
+
         <p className="auth-switch">
           New to Eventix? <Link to="/register">Create account</Link>
         </p>
