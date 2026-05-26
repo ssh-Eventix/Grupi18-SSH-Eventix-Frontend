@@ -128,9 +128,6 @@ const handleStop = async () => {
           <h1>Impersonate Tenant</h1>
           <p>Start or stop a temporary tenant support session.</p>
         </div>
-        <button className="secondary-action" type="button" onClick={loadTenants} disabled={loadingTenants}>
-          <FaRedo /> Refresh
-        </button>
       </header>
 
       {error && <div className="form-alert">{error}</div>}

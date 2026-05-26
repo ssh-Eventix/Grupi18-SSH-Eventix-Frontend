@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
+  FaBell,
   FaChartPie,
   FaEnvelope,
   FaShieldAlt,
@@ -7,6 +8,7 @@ import {
   FaStore,
   FaUserSecret,
   FaUsers,
+  FaMapMarkedAlt,
 } from "react-icons/fa";
 import { useAuth } from "../auth/AuthContext";
 
@@ -16,6 +18,8 @@ const links = [
   { path: "/superadmin/tenant-domains", label: "Tenant Domains", icon: FaEnvelope },
   { path: "/superadmin/tenant-admins", label: "Tenant Admins", icon: FaUsers },
   { path: "/superadmin/impersonate", label: "Impersonate", icon: FaUserSecret },
+  { path: "/superadmin/venues", label: "Venues", icon: FaMapMarkedAlt },
+  { path: "/superadmin/notifications", label: "Notifications", icon: FaBell },
 ];
 
 export default function SuperAdminLayout() {
