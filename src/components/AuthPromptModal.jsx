@@ -23,7 +23,11 @@ const AuthPromptModal = ({ message, onClose, redirectTo }) => {
         <h2>Join Eventix first</h2>
         <p>{message || "Create an account or log in to continue with tickets, favorites, and your profile."}</p>
         <div className="auth-prompt-actions">
-          <Link className="primary-button" to="/register">
+          <Link className="primary-button" to="/register"   onClick={() => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("tenantSlug");
+    localStorage.removeItem("user");
+  }}>
             <FaUserPlus /> Create account
           </Link>
           <Link className="auth-secondary-button" to="/login" state={{ from: redirectLocation, forceAuthPrompt: true }}>

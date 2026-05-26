@@ -22,7 +22,9 @@ function Register() {
   const navigate = useNavigate();
 
   if (isAuthenticated) {
-    return <Navigate to="/buyer" replace />;
+    localStorage.removeItem("token");
+    localStorage.removeItem("tenantSlug");
+    localStorage.removeItem("user");
   }
 
   const updateField = (name, value) => {
