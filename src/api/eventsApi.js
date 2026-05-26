@@ -52,15 +52,10 @@ export const eventsApi = {
   },
 
   async getById(id) {
-    try {
-      const response = await api.get(`/Events/public/${id}`, {
-        suppressAuthRedirect: true,
-      });
+    const response = await api.get(`/Events/public/${id}`, {
+      suppressAuthRedirect: true,
+    });
 
-      return normalizeBackendEvent(response.data);
-    } catch {
-      const events = await eventsApi.browse();
-      return events.find((event) => event.id === id || event.backendId === id) || null;
-    }
-  },
+    return normalizeBackendEvent(response.data);
+  }
 };
