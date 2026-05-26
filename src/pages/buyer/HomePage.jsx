@@ -44,10 +44,16 @@ function HomePage() {
 
     return cityOptions.filter((item) => item.toLowerCase().startsWith(normalizedCity));
   }, [cityOptions, draftCity]);
-
+    
   useEffect(() => {
-    eventsApi.browse({ search: query, publicOnly: isPublicPage }).then(setEvents);
-  }, [isPublicPage, query]);
+    eventsApi
+      .browse({ search: query })
+      .then(setEvents)
+      .catch((error) => {
+        console.error("Public events failed:", error.response?.data || error.message);
+        setEvents([]);
+      });
+  }, [query]);
 
   useEffect(() => {
     setFavoriteIds(new Set(events.filter((event) => isFavoriteEvent(event.id)).map((event) => event.id)));
@@ -142,7 +148,11 @@ function HomePage() {
               >
                 <FaHeart /> Favorites
               </button>
-              <Link className="buyer-register-link" to="/register">Create account</Link>
+              <Link className="buyer-register-link" to="/register"   onClick={() => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("tenantSlug");
+    localStorage.removeItem("user");
+  }}>Create account</Link>
               <button
                 className="buyer-profile-button"
                 type="button"
