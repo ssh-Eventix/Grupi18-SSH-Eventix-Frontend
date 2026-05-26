@@ -130,9 +130,6 @@ const allowedDomains = useMemo(() => {
           <h1>Tenant Admins</h1>
           <p>Create administrator accounts using only the active email domains configured for each tenant.</p>
         </div>
-        <button className="secondary-action" type="button" onClick={loadData} disabled={loading}>
-          <FaRedo /> Refresh
-        </button>
       </header>
 
       {error && <div className="form-alert">{error}</div>}
