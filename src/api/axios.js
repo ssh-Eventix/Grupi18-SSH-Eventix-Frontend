@@ -7,12 +7,12 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const url = config.url || "";
-
-  if (url.includes("/Events/public")) {
-    delete config.headers.Authorization;
-    delete config.headers["X-Tenant-Slug"];
-    return config;
-  }
+  
+if (url.includes("/Events/public")) {
+  delete config.headers.Authorization;
+  delete config.headers["X-Tenant-Slug"];
+  return config;
+}
 
   if (url.includes("/auth/register")) {
     delete config.headers.Authorization;
