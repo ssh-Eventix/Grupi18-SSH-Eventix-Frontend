@@ -2354,6 +2354,17 @@ h2 {
   width: 100%;
 }
 
+.auth-helper-link {
+  font-size: 13px;
+  font-weight: 900;
+  margin-top: 14px;
+  text-align: right;
+}
+
+.auth-helper-link a {
+  color: var(--orange);
+}
+
 .auth-switch {
   color: #64748b;
   font-size: 14px;

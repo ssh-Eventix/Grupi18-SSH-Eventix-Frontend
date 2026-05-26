@@ -22,6 +22,8 @@ import {
 } from "../pages/buyer/BuyerPages";
 import LoginPage from "../pages/public/LoginPage";
 import Register from "../pages/public/Register";
+import ForgotPasswordPage from "../pages/public/ForgotPasswordPage";
+import ResetPasswordPage from "../pages/public/ResetPasswordPage";
 import SuperAdminDashboardPage from "../pages/superadmin/SuperAdminDashboardPage";
 import TenantEmailDomainsPage from "../pages/superadmin/TenantEmailDomainsPage";
 import TenantsPage from "../pages/superadmin/TenantsPage";
@@ -120,6 +122,8 @@ function AppRoutes() {
 
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="*" element={<StartRedirect />} />
       <Route path="/unauthorized" element={<Navigate to="/" replace />} />
     </Routes>
