@@ -1,8 +1,6 @@
 import api from "./axios";
 import { buyerEvents } from "../pages/buyer/buyerData";
 
-const DEFAULT_TENANT_SLUG = "yllka";
-
 const formatDate = (value) => (value ? new Date(value).toLocaleDateString() : "Date TBA");
 
 const formatTime = (value) =>
@@ -12,10 +10,6 @@ const isActiveEvent = (event) => {
   if (!event.endUtc) return true;
   return new Date(event.endUtc).getTime() > Date.now();
 };
-
-const tenantHeaders = (tenantSlug) => ({
-  "X-Tenant-Slug": tenantSlug || localStorage.getItem("tenantSlug") || DEFAULT_TENANT_SLUG,
-});
 
 const normalizeBackendEvent = (event) => {
   const startsAt = event.startUtc || event.startTime;
@@ -47,52 +41,26 @@ const normalizeEventList = (data) => {
   return rawEvents.map(normalizeBackendEvent).filter(isActiveEvent);
 };
 
-const getEventsFrom = async (url, { search = "", tenantSlug } = {}) => {
-  const response = await api.get(url, {
-    headers: tenantHeaders(tenantSlug),
-    params: search ? { search } : undefined,
-    suppressAuthRedirect: true,
-  });
-
-  return normalizeEventList(response.data);
-};
-
 export const eventsApi = {
-  async browse({ search = "", tenantSlug, publicOnly = false } = {}) {
-    const urls = publicOnly ? ["/Events/public", "/Events/search"] : ["/Events/search", "/Events"];
+  async browse({ search = "" } = {}) {
+    const response = await api.get("/Events/public", {
+      params: search ? { search } : undefined,
+      suppressAuthRedirect: true,
+    });
 
-    for (const url of urls) {
-      try {
-        return await getEventsFrom(url, { search, tenantSlug });
-      } catch {
-        // Try the next supported endpoint before returning an empty dynamic list.
-      }
-    }
-
-    return [];
+    return normalizeEventList(response.data);
   },
 
-  async getById(id, { tenantSlug, publicOnly = false } = {}) {
-    const urls = publicOnly ? [`/Events/public/${id}`] : [`/Events/${id}`];
+  async getById(id) {
+    try {
+      const response = await api.get(`/Events/public/${id}`, {
+        suppressAuthRedirect: true,
+      });
 
-    for (const url of urls) {
-      try {
-        const response = await api.get(url, {
-          headers: tenantHeaders(tenantSlug),
-          suppressAuthRedirect: true,
-        });
-
-        return normalizeBackendEvent(response.data);
-      } catch {
-        // Fall through to list lookup or local fallback.
-      }
-    }
-
-    if (publicOnly) {
-      const events = await eventsApi.browse({ tenantSlug, publicOnly: true });
+      return normalizeBackendEvent(response.data);
+    } catch {
+      const events = await eventsApi.browse();
       return events.find((event) => event.id === id || event.backendId === id) || null;
     }
-
-    return null;
   },
 };
