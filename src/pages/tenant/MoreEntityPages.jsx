@@ -11,6 +11,7 @@ import { ticketService } from "../../services/ticketService";
 import { ticketTypeService } from "../../services/ticketTypeService";
 import { usersService } from "../../services/usersService";
 import { handleApiError } from "../../utils/apiErrorHandler";
+import "./Tenant.css";
 
 const uuid = "00000000-0000-0000-0000-000000000000";
 
@@ -102,17 +103,32 @@ export function TicketTypesPage() {
       eventId,
       eventSectionId: "",
     }));
+
     setError("");
     setMessage("");
 
     if (!eventId) {
       setTicketTypes([]);
+      setEventSections([]);
       return;
     }
 
     try {
-      const data = await ticketTypeService.getByEventId(eventId);
-      setTicketTypes(data);
+      const [sectionsData, ticketTypesData] = await Promise.all([
+        eventSectionsService.getAll(),
+        ticketTypeService.getByEventId(eventId),
+      ]);
+
+      const nextSections = Array.isArray(sectionsData)
+        ? sectionsData
+        : sectionsData?.data ?? [];
+
+      const nextTicketTypes = Array.isArray(ticketTypesData)
+        ? ticketTypesData
+        : ticketTypesData?.data ?? [];
+
+      setEventSections(nextSections);
+      setTicketTypes(nextTicketTypes);
     } catch (err) {
       setError(handleApiError(err));
     }
@@ -261,9 +277,6 @@ export function TicketTypesPage() {
           <h1>Ticket Types</h1>
           <p>Manage pricing, stock, and sale windows by event section.</p>
         </div>
-        <button type="button" onClick={() => handleEventChange(form.eventId)} disabled={!form.eventId || loading}>
-          Refresh
-        </button>
       </div>
 
       {error && <div className="form-alert">{error}</div>}
@@ -289,21 +302,34 @@ export function TicketTypesPage() {
 
         <div className="form-field">
           <label>Event Section</label>
-          <select
-            value={form.eventSectionId}
-            disabled={saving || !form.eventId}
-            onChange={(event) => updateField("eventSectionId", event.target.value)}
-            required
-          >
-            <option value="">
-              {form.eventId ? "Select section" : "Select event first"}
-            </option>
-            {selectedEventSections.map((section) => (
-              <option key={section.id} value={section.id}>
-                {section.code ? `${section.name} (${section.code})` : section.name}
-              </option>
-            ))}
-          </select>
+          <div className="form-field full">
+            <label>Choose venue part for this ticket type</label>
+
+            <div className="event-section-picker">
+              {selectedEventSections.length === 0 && (
+                <p className="status-text">
+                  No event sections found for this event. First create Event Sections for this event.
+                </p>
+              )}
+              {selectedEventSections.map((section) => {
+                const selected = String(form.eventSectionId) === String(section.id);
+
+                return (
+                  <button
+                    key={section.id}
+                    type="button"
+                    className={`event-section-card ${selected ? "selected" : ""}`}
+                    disabled={saving}
+                    onClick={() => updateField("eventSectionId", section.id)}
+                  >
+                    <strong>{section.name}</strong>
+                    <span>{section.code}</span>
+                    <small>Capacity: {section.capacity}</small>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         <div className="form-field">
@@ -381,7 +407,6 @@ export function TicketTypesPage() {
           fetchData={fetchTicketTypes}
           defaultPageSize={5}
           pageSizeOptions={[5, 10, 20]}
-          refreshKey={`${form.eventId}-${ticketTypes.length}-${loading}`}
         />
       )}
     </section>
@@ -693,9 +718,6 @@ export function CheckInsPage() {
           <h1>Check-in</h1>
           <p>Validate tickets and mark attendees as checked in.</p>
         </div>
-        <button type="button" onClick={loadTickets} disabled={loadingTickets}>
-          {loadingTickets ? "Refreshing..." : "Refresh"}
-        </button>
       </div>
 
       {error && <div className="form-alert">{error}</div>}
@@ -773,7 +795,6 @@ export function CheckInsPage() {
           fetchData={fetchCheckInTickets}
           defaultPageSize={5}
           pageSizeOptions={[5, 10, 20]}
-          refreshKey={`${tickets.length}-${checkingIn}-${loadingTickets}`}
           actions={{
             onView: (item) => findTicketFromList(item.ticketCode),
             custom: [
@@ -899,9 +920,6 @@ export function AttendeesPage() {
           <h1>Attendees</h1>
           <p>Track ticket holders, check-in status, and attendance by event.</p>
         </div>
-        <button type="button" onClick={loadData} disabled={loading}>
-          {loading ? "Refreshing..." : "Refresh"}
-        </button>
       </div>
 
       {error && <div className="form-alert">{error}</div>}
@@ -949,7 +967,6 @@ export function AttendeesPage() {
           fetchData={fetchAttendees}
           defaultPageSize={5}
           pageSizeOptions={[5, 10, 20]}
-          refreshKey={`${eventId}-${tickets.length}-${loading}`}
         />
       </div>
     </section>
@@ -1144,9 +1161,6 @@ export function ReviewsPage() {
           <h1>Reviews</h1>
           <p>Monitor attendee feedback and rating trends by event.</p>
         </div>
-        <button type="button" onClick={loadReviews} disabled={loading}>
-          {loading ? "Refreshing..." : "Refresh"}
-        </button>
       </div>
 
       {error && <div className="form-alert">{error}</div>}
@@ -1227,7 +1241,6 @@ export function ReviewsPage() {
           fetchData={fetchReviews}
           defaultPageSize={5}
           pageSizeOptions={[5, 10, 20]}
-          refreshKey={`${eventId}-${reviews.length}-${users.length}-${loading}`}
         />
       )}
     </section>
@@ -1339,4 +1352,6 @@ export function AIRequestsPage() {
       ]}
     />
   );
+  
 }
+
