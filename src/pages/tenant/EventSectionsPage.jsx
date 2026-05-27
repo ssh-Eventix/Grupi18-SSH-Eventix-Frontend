@@ -55,7 +55,7 @@ export default function EventSectionsPage() {
       try {
         const [eventsData, eventSectionsData, venuesData] = await Promise.all([
           eventsService.getAll(),
-          eventSectionsService.getAll(),
+          Promise.resolve([]),
           venuesService.getAll(),
         ]);
 
@@ -80,7 +80,17 @@ export default function EventSectionsPage() {
         setEventSections(nextEventSections);
 
         if (nextEvents.length > 0) {
-          setSelectedEventId(nextEvents[0].id);
+          const firstEventId = nextEvents[0].id;
+
+          setSelectedEventId(firstEventId);
+
+          const sections = await eventSectionsService.getByEventId(firstEventId);
+
+          setEventSections(
+            Array.isArray(sections)
+              ? sections
+              : sections?.data ?? []
+          );
         }
       } catch (err) {
         setError(handleApiError(err));
@@ -187,10 +197,12 @@ export default function EventSectionsPage() {
     setSaving(true);
 
     try {
-      await eventSectionsService.create(payload);
+      const created = await eventSectionsService.create(payload);
 
-      const updated = await eventSectionsService.getAll();
-      setEventSections(Array.isArray(updated) ? updated : updated?.data ?? []);
+      setEventSections((prev) => [
+        ...prev,
+        created,
+      ]);
 
       setSelectedVenueSectionId("");
       setForm({
@@ -228,11 +240,26 @@ export default function EventSectionsPage() {
           <select
             value={selectedEventId}
             disabled={saving}
-            onChange={(event) => {
-              setSelectedEventId(event.target.value);
+            onChange={async (event) => {
+              const eventId = event.target.value;
+
+              setSelectedEventId(eventId);
               setSelectedVenueSectionId("");
               setError("");
               setMessage("");
+
+              try {
+                const sections =
+                  await eventSectionsService.getByEventId(eventId);
+
+                setEventSections(
+                  Array.isArray(sections)
+                    ? sections
+                    : sections?.data ?? []
+                );
+              } catch (err) {
+                setError(handleApiError(err));
+              }
             }}
             required
           >

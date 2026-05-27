@@ -57,26 +57,47 @@ export function TicketTypesPage() {
       setMessage("");
 
       try {
-        const [eventsData, sectionsData] = await Promise.all([
-          eventsService.getAll(),
-          eventSectionsService.getAll(),
-        ]);
+        const eventsData = await eventsService.getAll();
 
-        const nextEvents = Array.isArray(eventsData) ? eventsData : eventsData?.data ?? [];
-        const nextSections = Array.isArray(sectionsData) ? sectionsData : sectionsData?.data ?? [];
+        const nextEvents = Array.isArray(eventsData)
+          ? eventsData
+          : eventsData?.data ?? [];
 
         setEvents(nextEvents);
-        setEventSections(nextSections);
 
         if (nextEvents.length > 0) {
           const firstEventId = nextEvents[0].id;
+
           setForm((prev) => ({
             ...prev,
             eventId: prev.eventId || firstEventId,
           }));
 
-          const data = await ticketTypeService.getByEventId(firstEventId);
-          setTicketTypes(data);
+          try {
+            const sectionsData =
+              await eventSectionsService.getByEventId(firstEventId);
+
+            setEventSections(
+              Array.isArray(sectionsData)
+                ? sectionsData
+                : sectionsData?.data ?? []
+            );
+          } catch {
+            setEventSections([]);
+          }
+
+          try {
+            const ticketTypesData =
+              await ticketTypeService.getByEventId(firstEventId);
+
+            setTicketTypes(
+              Array.isArray(ticketTypesData)
+                ? ticketTypesData
+                : ticketTypesData?.data ?? []
+            );
+          } catch {
+            setTicketTypes([]);
+          }
         }
       } catch (err) {
         setError(handleApiError(err));
@@ -115,7 +136,7 @@ export function TicketTypesPage() {
 
     try {
       const [sectionsData, ticketTypesData] = await Promise.all([
-        eventSectionsService.getAll(),
+        eventSectionsService.getByEventId(eventId),
         ticketTypeService.getByEventId(eventId),
       ]);
 
