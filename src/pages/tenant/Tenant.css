@@ -30,3 +30,9 @@
 .form-field.full {
   grid-column: 1 / -1;
 }
+
+.form-alert.success {
+  background: #e6f7ed;
+  color: #137333;
+  border: 1px solid #b7e4c7;
+}
