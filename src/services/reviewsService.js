@@ -13,8 +13,28 @@ export const reviewsService = {
     return response.data;
   },
 
-  create: async (data) => {
-    const response = await api.post(URL, data);
+  getByEventId: async (eventId, tenantSlug) => {
+    const response = await api.get(`${URL}/event/${eventId}`, {
+      headers: tenantSlug ? { "X-Tenant-Slug": tenantSlug } : undefined,
+      suppressAuthRedirect: true,
+    });
+
+    return response.data;
+  },
+
+  getByUserId: async (userId, tenantSlug) => {
+    const response = await api.get(`${URL}/user/${userId}`, {
+      headers: tenantSlug ? { "X-Tenant-Slug": tenantSlug } : undefined,
+    });
+
+    return response.data;
+  },
+
+  create: async (data, tenantSlug) => {
+    const response = await api.post(URL, data, {
+      headers: tenantSlug ? { "X-Tenant-Slug": tenantSlug } : undefined,
+    });
+
     return response.data;
   },
 };

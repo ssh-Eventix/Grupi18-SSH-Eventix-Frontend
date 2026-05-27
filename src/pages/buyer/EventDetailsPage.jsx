@@ -11,14 +11,13 @@ import {
   FaTicketAlt,
   FaUserTie,
 } from "react-icons/fa";
-import api from "../../api/axios";
 import AuthPromptModal from "../../components/AuthPromptModal";
 import { eventsApi } from "../../api/eventsApi";
 import { useAuth } from "../../auth/AuthContext";
 import { getAvailableTicketTypes } from "../../services/ticketTypeService";
+import { reviewsService } from "../../services/reviewsService";
 import {
   addBuyerReview,
-  getBuyerReviews,
   isFavoriteEvent,
   toggleFavoriteEvent,
 } from "../../services/buyerStorage";
@@ -28,11 +27,31 @@ const fallbackTicketTypes = [
   { id: "vip", name: "VIP", price: 35, quantityAvailable: 20 },
 ];
 
+const getEventTenantSlug = (event) => {
+  if (event?.tenantSlug) return event.tenantSlug;
+  if (event?.schemaName?.startsWith("tenant_")) {
+    return event.schemaName.replace(/^tenant_/, "").replace(/_events$/, "");
+  }
+
+  return "";
+};
+
+const getErrorMessage = (error) => {
+  const data = error.response?.data;
+
+  if (typeof data === "string") return data;
+  if (data?.message) return data.message;
+  if (data?.title) return data.title;
+  if (data?.errors) return Object.values(data.errors).flat().join(" ");
+
+  return error.message || "Review could not be saved right now. Please try again.";
+};
+
 function EventDetailsPage() {
   const { eventId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { token, user } = useAuth();
   const isPublicPage = !location.pathname.startsWith("/buyer");
   const backPath = location.pathname.startsWith("/buyer") ? "/buyer" : "/";
   const [event, setEvent] = useState(null);
@@ -42,6 +61,7 @@ function EventDetailsPage() {
   const [favorite, setFavorite] = useState(false);
   const [reviews, setReviews] = useState([]);
   const [reviewForm, setReviewForm] = useState({ rating: 5, comment: "" });
+  const [reviewError, setReviewError] = useState("");
   const [authPrompt, setAuthPrompt] = useState(null);
 
   useEffect(() => {
@@ -53,8 +73,12 @@ function EventDetailsPage() {
 
   useEffect(() => {
     if (!event) return;
+    const eventTenantSlug = getEventTenantSlug(event);
 
-    setReviews(getBuyerReviews().filter((review) => review.eventId === event.id || review.backendEventId === event.backendId));
+    reviewsService
+      .getByEventId(event.backendId || event.id, eventTenantSlug)
+      .then(setReviews)
+      .catch(() => setReviews([]));
 
     if (isPublicPage) {
       setTicketTypes(fallbackTicketTypes);
@@ -120,7 +144,7 @@ function EventDetailsPage() {
 
   const submitReview = async (submitEvent) => {
     submitEvent.preventDefault();
-    if (!user) {
+    if (!token) {
       setAuthPrompt({
         message: "Log in or create an account to write a review.",
         redirectTo: `/buyer/events/${event.id}`,
@@ -130,31 +154,54 @@ function EventDetailsPage() {
 
     if (!reviewForm.comment.trim()) return;
 
+    const userId = user?.id || user?.userId || user?.publicUserId;
+    const eventTenantSlug = getEventTenantSlug(event);
+
+    if (!userId) {
+      setReviewError("Your login session is missing the user id. Please log out and log in again.");
+      return;
+    }
+
+    if (!eventTenantSlug) {
+      setReviewError("This event is missing tenantSlug from the public events API, so the review cannot be saved to the correct tenant.");
+      return;
+    }
+
+    setReviewError("");
+
     const review = {
-      eventId: event.id,
-      backendEventId: event.backendId,
-      eventTitle: event.title,
-      userId: user?.id || "local-buyer",
+      eventId: event.backendId || event.id,
+      userId,
       rating: Number(reviewForm.rating),
       comment: reviewForm.comment.trim(),
     };
 
-    if (event.isBackendEvent && user?.id) {
-      try {
-        await api.post("/Review", {
-          eventId: event.backendId || event.id,
-          userId: user.id,
-          rating: review.rating,
-          comment: review.comment,
-        });
-      } catch {
-        // Local review is still useful for the buyer profile when backend validation blocks it.
-      }
-    }
+    try {
+      const savedReview = await reviewsService.create(review, eventTenantSlug);
+      const profileReview = {
+        ...savedReview,
+        id: savedReview.id || `review-${Date.now()}`,
+        eventId: event.backendId || event.id,
+        eventTitle: event.title,
+        tenantSlug: eventTenantSlug,
+        rating: savedReview.rating || review.rating,
+        comment: savedReview.comment || review.comment,
+      };
 
-    addBuyerReview(review);
-    setReviews([review, ...reviews]);
-    setReviewForm({ rating: 5, comment: "" });
+      addBuyerReview(profileReview);
+      setReviews([savedReview, ...reviews]);
+      setReviewForm({ rating: 5, comment: "" });
+    } catch (error) {
+      if (error.response?.status === 401) {
+        setAuthPrompt({
+          message: "Your session expired. Log in again to write a review.",
+          redirectTo: `/buyer/events/${event.id}`,
+        });
+        return;
+      }
+
+      setReviewError(getErrorMessage(error));
+    }
   };
 
   return (
@@ -233,6 +280,7 @@ function EventDetailsPage() {
           </label>
           <button className="primary-button settings-save" type="submit">Add review</button>
         </form>
+        {reviewError && <p className="form-error">{reviewError}</p>}
         <div className="ticket-list">
           {reviews.map((review) => (
             <article className="ticket-card" key={review.id || `${review.eventId}-${review.createdAt}`}>
