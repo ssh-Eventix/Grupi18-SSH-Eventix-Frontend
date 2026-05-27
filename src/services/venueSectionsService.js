@@ -4,17 +4,17 @@ const URL = "/VenueSection";
 
 export const venueSectionsService = {
   getAll: async () => {
-    const response = await api.get(URL);
+    const response = await api.get(`${URL}/public`);
+    return response.data;
+  },
+
+  getByVenueId: async (venueId) => {
+    const response = await api.get(`${URL}/public/venue/${venueId}`);
     return response.data;
   },
 
   getById: async (id) => {
     const response = await api.get(`${URL}/${id}`);
-    return response.data;
-  },
-
-  getByVenue: async (venueId) => {
-    const response = await api.get(`${URL}/venue/${venueId}`);
     return response.data;
   },
 

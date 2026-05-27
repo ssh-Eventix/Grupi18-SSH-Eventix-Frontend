@@ -14,13 +14,11 @@ if (url.includes("/Events/public")) {
   return config;
 }
 
-  if (url.includes("/Events/public")) {
-    delete config.headers.Authorization;
-    delete config.headers["X-Tenant-Slug"];
-    return config;
-  }
-
-  if (url.includes("/auth/register")) {
+  if (
+    url.includes("/auth/register") ||
+    url.includes("/auth/forgot-password") ||
+    url.includes("/auth/reset-password")
+  ) {
     delete config.headers.Authorization;
     delete config.headers["X-Tenant-Slug"];
     return config;
@@ -41,6 +39,14 @@ if (url.includes("/Events/public")) {
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+
+    if (
+    url.includes("/Venue/public") ||
+    url.includes("/VenueSection/public")
+  ) {
+    delete config.headers["X-Tenant-Slug"];
+    return config;
   }
 
   if (tenantSlug) {

@@ -132,9 +132,6 @@ export default function ReportsPage() {
           <h1>Reports</h1>
           <p>Track event performance, revenue, attendance, and review health.</p>
         </div>
-        <button type="button" onClick={loadReports} disabled={loading}>
-          {loading ? "Refreshing..." : "Refresh"}
-        </button>
       </div>
 
       {error && <div className="form-alert">{error}</div>}
@@ -172,7 +169,6 @@ export default function ReportsPage() {
           fetchData={fetchReportRows}
           defaultPageSize={5}
           pageSizeOptions={[5, 10, 20]}
-          refreshKey={`${reportRows.length}-${loading}`}
         />
       )}
     </section>
