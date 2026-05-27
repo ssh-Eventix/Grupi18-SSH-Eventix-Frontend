@@ -32,6 +32,8 @@ const normalizeBackendEvent = (event) => {
     description: event.description || "Event details will be published soon.",
     organizerName: event.organizerName || "Eventix organizer",
     speakerName: event.speakerName || event.mainSpeakerName || "",
+    tenantSlug: event.tenantSlug || event.TenantSlug || "",
+    schemaName: event.schemaName || event.SchemaName || "",
     image: event.bannerImageUrl || buyerEvents[0].image,
   };
 };
