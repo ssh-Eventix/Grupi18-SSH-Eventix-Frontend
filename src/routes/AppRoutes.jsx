@@ -93,8 +93,6 @@ function AppRoutes() {
           <Route path="event-sessions" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><EventSessionsPage /></TenantAccessRoute>} />
           <Route path="speakers" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><SpeakersPage /></TenantAccessRoute>} />
           <Route path="coupons" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><CouponsPage /></TenantAccessRoute>} />
-          <Route path="venues" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><VenuesPage /></TenantAccessRoute>} />
-          <Route path="venue-sections" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><VenueSectionsPage /></TenantAccessRoute>} />
           <Route path="tickets" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><TicketTypesPage /></TenantAccessRoute>} />
           <Route path="orders" element={<BookingsPage />} />
           <Route path="payments" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><PaymentsPage /></TenantAccessRoute>} />

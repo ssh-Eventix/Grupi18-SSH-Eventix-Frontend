@@ -43,7 +43,7 @@ export default function SuperAdminVenuesPage() {
     try {
         setLoading(true);
 
-        const response = await api.get("/Venues");
+        const response = await api.get("/Venue");
         const venueList = response.data || [];
         setVenues(venueList);
 
@@ -53,7 +53,7 @@ export default function SuperAdminVenuesPage() {
         venueList.map(async (venue) => {
             try {
             const sectionResponse = await api.get(
-                `/VenueSections/venue/${venue.id}`
+              `/VenueSection/public/venue/${venue.id}`
             );
 
             sectionsByVenue[venue.id] = sectionResponse.data || [];
@@ -74,7 +74,9 @@ export default function SuperAdminVenuesPage() {
   const loadSections = async (venue) => {
     try {
       setSelectedVenue(venue);
-      const response = await api.get(`/VenueSections/venue/${venue.id}`);
+      const response = await api.get(
+        `/VenueSection/public/venue/${venue.id}`
+      );
       setSections(response.data || []);
     } catch (err) {
       setError("Failed to load venue sections.");
@@ -114,9 +116,9 @@ export default function SuperAdminVenuesPage() {
 
     try {
       if (editingVenueId) {
-        await api.put(`/Venues/${editingVenueId}`, payload);
+        await api.put(`/Venue/${editingVenueId}`, payload);
       } else {
-        await api.post("/Venues", payload);
+        await api.post("/Venue", payload);
       }
 
       setVenueForm(emptyVenue);
@@ -145,7 +147,7 @@ export default function SuperAdminVenuesPage() {
     if (!window.confirm("Delete this venue?")) return;
 
     try {
-      await api.delete(`/Venues/${id}`);
+      await api.delete(`/Venue/${id}`);
       if (selectedVenue?.id === id) {
         setSelectedVenue(null);
         setSections([]);
@@ -215,10 +217,10 @@ export default function SuperAdminVenuesPage() {
     try {
         setSavingSection(true);
 
-        await api.post("/VenueSections", payload);
+        await api.post("/VenueSection", payload);
 
         const sectionResponse = await api.get(
-        `/VenueSections/venue/${selectedVenue.id}`
+          `/VenueSection/public/venue/${selectedVenue.id}`
         );
 
         const updatedSections = sectionResponse.data || [];
@@ -243,7 +245,7 @@ export default function SuperAdminVenuesPage() {
     if (!window.confirm("Delete this section?")) return;
 
     try {
-      await api.delete(`/VenueSections/${id}`);
+      await api.delete(`/VenueSection/${id}`);
       await loadSections(selectedVenue);
       await loadVenues();
     } catch (err) {
