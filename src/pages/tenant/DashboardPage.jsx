@@ -1,10 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   FaCalendarAlt,
-  FaChartLine,
-  FaCheck,
-  FaClipboardList,
-  FaQrcode,
   FaTicketAlt,
   FaUsers,
   FaWallet,
@@ -16,31 +12,6 @@ import { eventsService } from "../../services/eventsService";
 import { reviewsService } from "../../services/reviewsService";
 import { ticketService } from "../../services/ticketService";
 import { handleApiError } from "../../utils/apiErrorHandler";
-
-const actions = [
-  { label: "Events", path: "/tenant/events", icon: FaClipboardList },
-  { label: "Categories", path: "/tenant/event-categories", icon: FaCalendarAlt },
-  { label: "Sections", path: "/tenant/event-sections", icon: FaCalendarAlt },
-  { label: "Sessions", path: "/tenant/event-sessions", icon: FaCalendarAlt },
-  { label: "Speakers", path: "/tenant/speakers", icon: FaUsers },
-  { label: "Tickets", path: "/tenant/tickets", icon: FaTicketAlt },
-  { label: "Bookings", path: "/tenant/orders", icon: FaWallet },
-  { label: "Payments", path: "/tenant/payments", icon: FaWallet },
-  { label: "Coupons", path: "/tenant/coupons", icon: FaCheck },
-  { label: "Check-ins", path: "/tenant/check-in", icon: FaQrcode },
-  { label: "Notifications", path: "/tenant/notifications", icon: FaChartLine },
-  { label: "Reviews", path: "/tenant/reviews", icon: FaCheck },
-  { label: "Users", path: "/tenant/attendees", icon: FaUsers },
-  { label: "Roles", path: "/tenant/roles", icon: FaCheck },
-  { label: "Venues", path: "/tenant/venues", icon: FaCalendarAlt },
-  { label: "Venue Sections", path: "/tenant/venue-sections", icon: FaCalendarAlt },
-];
-
-const staffActions = [
-  { label: "Check-ins", path: "/tenant/check-in", icon: FaQrcode },
-  { label: "Attendees", path: "/tenant/attendees", icon: FaUsers },
-  { label: "Orders", path: "/tenant/orders", icon: FaWallet },
-];
 
 const normalizeRole = (role) =>
   String(role || "")
@@ -115,7 +86,6 @@ const buildChartPoints = (bookings) => {
 function DashboardPage() {
   const { user } = useAuth();
   const isStaff = normalizeRole(user?.role) === "staff";
-  const visibleActions = isStaff ? staffActions : actions;
   const [events, setEvents] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [tickets, setTickets] = useState([]);
@@ -312,22 +282,6 @@ function DashboardPage() {
         </article>
       </div>
 
-      <article className="panel quick-actions">
-        <div className="panel-title">
-          <h2>Quick Actions</h2>
-        </div>
-        <div className="quick-grid">
-          {visibleActions.map((action) => {
-            const Icon = action.icon;
-            return (
-              <Link to={action.path} key={action.label}>
-                <Icon />
-                <span>{action.label}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </article>
     </section>
   );
 }

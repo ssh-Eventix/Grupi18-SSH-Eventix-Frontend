@@ -473,10 +473,6 @@ h2 {
   font-weight: 800;
 }
 
-.quick-actions {
-  margin-top: 16px;
-}
-
 .quick-grid {
   display: grid;
   gap: 12px;

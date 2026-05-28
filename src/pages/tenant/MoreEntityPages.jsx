@@ -240,11 +240,16 @@ export function TicketTypesPage() {
     return section.code ? `${section.name} (${section.code})` : section.name;
   };
 
+
+  
   const ticketTypeRows = useMemo(() => {
     return ticketTypes.map((type) => ({
       ...type,
       sectionLabel: getSectionLabel(type),
       priceText: `${Number(type.price || 0).toFixed(2)} EUR`,
+      ticketsLeft: Number(type.ticketsLeft ?? type.quantityAvailable ?? 0),
+      totalStock: Number(type.totalStock ?? 0),
+      stockText: `${Number(type.ticketsLeft ?? type.quantityAvailable ?? 0)} left / ${Number(type.totalStock ?? 0)} total`,
       statusText: getSaleStatus(type),
       saleStartText: formatDate(type.saleStartDate),
       saleEndText: formatDate(type.saleEndDate),
@@ -259,8 +264,10 @@ export function TicketTypesPage() {
           type.sectionLabel,
           type.name,
           type.priceText,
-          type.quantityAvailable,
+          type.ticketsLeft,
           type.soldQuantity,
+          type.totalStock,
+          type.stockText,
           type.statusText,
           type.saleStartText,
           type.saleEndText,
@@ -284,8 +291,9 @@ export function TicketTypesPage() {
     { key: "sectionLabel", label: "Section" },
     { key: "name", label: "Name" },
     { key: "priceText", label: "Price" },
-    { key: "quantityAvailable", label: "Available" },
+    { key: "ticketsLeft", label: "Tickets Left" },
     { key: "soldQuantity", label: "Sold" },
+    { key: "totalStock", label: "Total Stock" },
     { key: "statusText", label: "Status" },
     { key: "saleStartText", label: "Sale Start" },
     { key: "saleEndText", label: "Sale End" },
@@ -562,13 +570,38 @@ export function CheckInsPage() {
   const [checkingIn, setCheckingIn] = useState(false);
 
   const statusLabels = {
-    0: "Active",
-    1: "Used",
+    0: "Ready",
+    1: "Checked in",
     2: "Cancelled",
     3: "Refunded",
   };
 
   const cleanTicketCode = () => ticketCode.trim();
+
+  const mergeTicketIntoList = (updatedTicket) => {
+    if (!updatedTicket?.ticketCode) return;
+
+    setTickets((prev) => {
+      const exists = prev.some((item) => item.ticketCode === updatedTicket.ticketCode);
+
+      if (!exists) {
+        return [updatedTicket, ...prev];
+      }
+
+      return prev.map((item) =>
+        item.ticketCode === updatedTicket.ticketCode
+          ? {
+              ...item,
+              ...updatedTicket,
+              eventTitle: updatedTicket.eventTitle ?? item.eventTitle,
+              buyerEmail: updatedTicket.buyerEmail ?? item.buyerEmail,
+              referenceNumber: updatedTicket.referenceNumber ?? item.referenceNumber,
+              bookingId: updatedTicket.bookingId ?? item.bookingId,
+            }
+          : item
+      );
+    });
+  };
 
   const loadTickets = async () => {
     setLoadingTickets(true);
@@ -601,6 +634,7 @@ export function CheckInsPage() {
     try {
       const result = await ticketService.getByCode(code);
       setTicket(result);
+      mergeTicketIntoList(result);
       return result;
     } catch (err) {
       setTicket(null);
@@ -633,13 +667,7 @@ export function CheckInsPage() {
       const updatedTicket = await ticketService.getByCode(code);
 
       setTicket(updatedTicket);
-      setTickets((prev) =>
-        prev.map((item) =>
-          item.ticketCode === updatedTicket.ticketCode
-            ? { ...item, ...updatedTicket }
-            : item
-        )
-      );
+      mergeTicketIntoList(updatedTicket);
       setMessage(response?.message || "Ticket successfully checked in.");
     } catch (err) {
       setError(handleApiError(err));
@@ -667,13 +695,7 @@ export function CheckInsPage() {
       const updatedTicket = await ticketService.getByCode(code);
 
       setTicket(updatedTicket);
-      setTickets((prev) =>
-        prev.map((item) =>
-          item.ticketCode === updatedTicket.ticketCode
-            ? { ...item, ...updatedTicket }
-            : item
-        )
-      );
+      mergeTicketIntoList(updatedTicket);
       setMessage(response?.message || "Ticket successfully checked in.");
     } catch (err) {
       setError(handleApiError(err));
@@ -816,6 +838,7 @@ export function CheckInsPage() {
           fetchData={fetchCheckInTickets}
           defaultPageSize={5}
           pageSizeOptions={[5, 10, 20]}
+          refreshKey={`${tickets.length}-${tickets.map((item) => `${item.ticketCode}:${item.status}:${item.usedAt || ""}`).join("|")}`}
           actions={{
             onView: (item) => findTicketFromList(item.ticketCode),
             custom: [

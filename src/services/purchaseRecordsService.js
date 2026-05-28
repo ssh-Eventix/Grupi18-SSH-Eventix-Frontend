@@ -1,12 +1,23 @@
 import api from "./api";
 
-const readRecords = (key) => JSON.parse(localStorage.getItem(key) || "[]");
+const normalizeLocalRecord = (record) => ({
+  ...record,
+  source: record.source === "Frontend demo" ? "Not synced" : record.source,
+});
+
+const readRecords = (key) =>
+  JSON.parse(localStorage.getItem(key) || "[]").map(normalizeLocalRecord);
 const writeRecords = (key, records) => localStorage.setItem(key, JSON.stringify(records));
 
 const prependRecord = (key, record) => {
   const records = readRecords(key);
   writeRecords(key, [record, ...records.filter((item) => item.id !== record.id)]);
 };
+
+const normalizeBackendRecord = (record) => ({
+  ...record,
+  source: record.source || "Backend",
+});
 
 export const savePurchaseRecords = ({
   backendBooking,
@@ -36,7 +47,7 @@ export const savePurchaseRecords = ({
     ticketType: ticketType?.name || "General Admission",
     ticketCode: ticket.code,
     createdAt: now,
-    source: backendBooking ? "Backend" : "Frontend demo",
+    source: backendBooking ? "Backend" : "Not synced",
   };
 
   const paymentRecord = {
@@ -80,7 +91,7 @@ export const mergedCrudService = (url, storageKey) => ({
 
       return [
         ...localRecords,
-        ...backendRecords.filter((item) => !localIds.has(item.id)),
+        ...backendRecords.filter((item) => !localIds.has(item.id)).map(normalizeBackendRecord),
       ];
     } catch {
       return localRecords;

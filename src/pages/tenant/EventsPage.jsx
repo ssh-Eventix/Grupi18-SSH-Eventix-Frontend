@@ -6,6 +6,25 @@ import { eventsService } from "../../services/eventsService";
 import { venuesService } from "../../services/venuesService";
 import { FaBrain } from "react-icons/fa";
 
+const statusOptions = [
+  { value: 1, label: "Draft" },
+  { value: 2, label: "Published" },
+  { value: 3, label: "Cancelled" },
+  { value: 4, label: "Completed" },
+  { value: 5, label: "Archived" },
+];
+
+const visibilityOptions = [
+  { value: 1, label: "Private" },
+  { value: 2, label: "Public" },
+  { value: 3, label: "Unlisted" },
+];
+
+const labelFromOptions = (options, value) => {
+  const match = options.find((option) => String(option.value) === String(value));
+  return match?.label || value || "";
+};
+
 export default function EventsPage() {
   const [venues, setVenues] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -185,8 +204,20 @@ export default function EventsPage() {
     { name: "organizerName", label: "Organizer" },
     { name: "startUtc", label: "Start", type: "datetime-local", required: true },
     { name: "endUtc", label: "End", type: "datetime-local", required: true },
-    { name: "status", label: "Status", type: "number" },
-    { name: "visibility", label: "Visibility", type: "number" },
+    {
+      name: "status",
+      label: "Status",
+      type: "select",
+      options: statusOptions,
+      render: (event) => labelFromOptions(statusOptions, event.status),
+    },
+    {
+      name: "visibility",
+      label: "Visibility",
+      type: "select",
+      options: visibilityOptions,
+      render: (event) => labelFromOptions(visibilityOptions, event.visibility),
+    },
     { name: "bannerImageUrl", label: "Banner Image URL" },
     { name: "maxTicketsPerOrder", label: "Max Tickets", type: "number", min: 1 },
     { name: "minTicketsPerOrder", label: "Min Tickets", type: "number", min: 1 },
@@ -222,6 +253,16 @@ export default function EventsPage() {
       render: (event) => event.endUtc ? new Date(event.endUtc).toLocaleString() : "",
     },
     {
+      name: "status",
+      label: "Status",
+      render: (event) => labelFromOptions(statusOptions, event.status),
+    },
+    {
+      name: "visibility",
+      label: "Visibility",
+      render: (event) => labelFromOptions(visibilityOptions, event.visibility),
+    },
+    {
       name: "isPublished",
       label: "Published",
       render: (event) => (event.isPublished ? "Yes" : "No"),
@@ -242,8 +283,8 @@ export default function EventsPage() {
         organizerName: "",
         startUtc: "",
         endUtc: "",
-        status: 0,
-        visibility: 0,
+        status: 1,
+        visibility: 2,
         bannerImageUrl: "",
         maxTicketsPerOrder: 10,
         minTicketsPerOrder: 1,

@@ -86,7 +86,7 @@ function EventDetailsPage() {
       return;
     }
 
-    getAvailableTicketTypes(event.backendId || event.id)
+    getAvailableTicketTypes(event.backendId || event.id, eventTenantSlug)
       .then((types) => {
         const nextTypes = types.length ? types : fallbackTicketTypes;
         setTicketTypes(nextTypes);
