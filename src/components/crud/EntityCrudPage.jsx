@@ -162,7 +162,6 @@ export default function EntityCrudPage({
           <h1>{title}</h1>
           {description && <p>{description}</p>}
         </div>
-        <button type="button" onClick={loadData}>Refresh</button>
       </div>
 
       {error && <div className="form-alert">{error}</div>}

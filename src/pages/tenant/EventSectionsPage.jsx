@@ -3,14 +3,11 @@ import { eventsService } from "../../services/eventsService";
 import { eventSectionsService } from "../../services/eventSectionsService";
 import { venueSectionsService } from "../../services/venueSectionsService";
 import { handleApiError } from "../../utils/apiErrorHandler";
-import { venuesService } from "../../services/venuesService";
 import "./Tenant.css";
 
 export default function EventSectionsPage() {
   const [events, setEvents] = useState([]);
   const [eventSections, setEventSections] = useState([]);
-  const [venues, setVenues] = useState([]);
-  const [selectedVenueId, setSelectedVenueId] = useState("");
 
   const [selectedEventId, setSelectedEventId] = useState("");
   const [selectedVenueSectionId, setSelectedVenueSectionId] = useState("");
@@ -34,6 +31,8 @@ export default function EventSectionsPage() {
     return events.find((event) => String(event.id) === String(selectedEventId));
   }, [events, selectedEventId]);
 
+  const selectedVenueId = selectedEvent?.venueId || "";
+
   const selectedVenueSection = useMemo(() => {
     return venueSections.find(
       (section) => String(section.id) === String(selectedVenueSectionId)
@@ -47,78 +46,65 @@ export default function EventSectionsPage() {
   }, [eventSections, selectedEventId]);
 
   useEffect(() => {
-    async function loadData() {
-      setLoading(true);
-      setError("");
-      setMessage("");
+  async function loadData() {
+    setLoading(true);
+    setError("");
+    setMessage("");
 
-      try {
-        const [eventsData, eventSectionsData, venuesData] = await Promise.all([
-          eventsService.getAll(),
-          Promise.resolve([]),
-          venuesService.getAll(),
-        ]);
+    try {
+      const eventsData = await eventsService.getAll();
 
-        const nextEvents = Array.isArray(eventsData)
-          ? eventsData
-          : eventsData?.data ?? [];
+      const nextEvents = Array.isArray(eventsData)
+        ? eventsData
+        : eventsData?.data ?? [];
 
-        const nextEventSections = Array.isArray(eventSectionsData)
-          ? eventSectionsData
-          : eventSectionsData?.data ?? [];
+      setEvents(nextEvents);
 
-          const nextVenues = Array.isArray(venuesData)
-            ? venuesData
-            : venuesData?.data ?? [];
+      if (nextEvents.length > 0) {
+        const firstEventId = nextEvents[0].id;
 
-          setVenues(nextVenues);
+        setSelectedEventId(firstEventId);
 
-          if (nextVenues.length > 0) {
-            setSelectedVenueId(nextVenues[0].id);
-          }
-        setEvents(nextEvents);
-        setEventSections(nextEventSections);
+        const sections = await eventSectionsService.getByEventId(firstEventId);
 
-        if (nextEvents.length > 0) {
-          const firstEventId = nextEvents[0].id;
-
-          setSelectedEventId(firstEventId);
-
-          const sections = await eventSectionsService.getByEventId(firstEventId);
-
-          setEventSections(
-            Array.isArray(sections)
-              ? sections
-              : sections?.data ?? []
-          );
-        }
-      } catch (err) {
-        setError(handleApiError(err));
-      } finally {
-        setLoading(false);
+        setEventSections(
+          Array.isArray(sections)
+            ? sections
+            : sections?.data ?? []
+        );
       }
+    } catch (err) {
+      setError(handleApiError(err));
+    } finally {
+      setLoading(false);
     }
+  }
 
-    loadData();
-  }, []);
+  loadData();
+}, []);
 
-  useEffect(() => {
-    async function loadVenueSections() {
-      setVenueSections([]);
-      setSelectedVenueSectionId("");
-      if (!selectedVenueId) return;
+ useEffect(() => {
+  async function loadVenueSections() {
+    setVenueSections([]);
+    setSelectedVenueSectionId("");
 
-      try {
-        const data = await venueSectionsService.getByVenueId(selectedVenueId);
+    if (!selectedVenueId) return;
 
-        setVenueSections(Array.isArray(data) ? data : data?.data ?? []);
-      } catch (err) {
-        setError(handleApiError(err));
-      }
+    try {
+      const data = await venueSectionsService.getByVenueId(selectedVenueId);
+
+      setVenueSections(
+        Array.isArray(data)
+          ? data
+          : data?.data ?? []
+      );
+    } catch (err) {
+      setError(handleApiError(err));
     }
+  }
 
-    loadVenueSections();
-  }, [selectedVenueId]);
+  loadVenueSections();
+}, [selectedVenueId]);
 
   const selectVenueSection = (section) => {
     setSelectedVenueSectionId(section.id);
@@ -241,26 +227,26 @@ export default function EventSectionsPage() {
             value={selectedEventId}
             disabled={saving}
             onChange={async (event) => {
-              const eventId = event.target.value;
+            const eventId = event.target.value;
 
-              setSelectedEventId(eventId);
-              setSelectedVenueSectionId("");
-              setError("");
-              setMessage("");
+            setSelectedEventId(eventId);
+            setSelectedVenueSectionId("");
+            setVenueSections([]);
+            setError("");
+            setMessage("");
 
-              try {
-                const sections =
-                  await eventSectionsService.getByEventId(eventId);
+            try {
+              const sections = await eventSectionsService.getByEventId(eventId);
 
-                setEventSections(
-                  Array.isArray(sections)
-                    ? sections
-                    : sections?.data ?? []
-                );
-              } catch (err) {
-                setError(handleApiError(err));
-              }
-            }}
+              setEventSections(
+                Array.isArray(sections)
+                  ? sections
+                  : sections?.data ?? []
+              );
+            } catch (err) {
+              setError(handleApiError(err));
+            }
+          }}
             required
           >
             <option value="">Select event</option>
@@ -272,25 +258,12 @@ export default function EventSectionsPage() {
           </select>
         </div>
         <div className="form-field full">
-          <label>Public Venue</label>
-          <select
-            value={selectedVenueId}
-            disabled={saving}
-            onChange={(event) => {
-              setSelectedVenueId(event.target.value);
-              setSelectedVenueSectionId("");
-              setError("");
-              setMessage("");
-            }}
-            required
-          >
-            <option value="">Select venue</option>
-            {venues.map((venue) => (
-              <option key={venue.id} value={venue.id}>
-                {venue.code ? `${venue.name} (${venue.code})` : venue.name}
-              </option>
-            ))}
-          </select>
+          <label>Venue</label>
+          <div className="readonly-info">
+            {selectedEvent
+              ? selectedEvent.venueName || selectedEvent.venueId || "Venue selected from event"
+              : "Select an event first"}
+          </div>
         </div>
 
         <div className="form-field full">
