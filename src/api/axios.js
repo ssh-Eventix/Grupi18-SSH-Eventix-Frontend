@@ -43,7 +43,8 @@ if (url.includes("/Events/public")) {
 
     if (
     url.includes("/Venue/public") ||
-    url.includes("/VenueSection/public")
+    url.includes("/VenueSection/public")||
+    url.includes("/AuditLog")
   ) {
     delete config.headers["X-Tenant-Slug"];
     return config;
