@@ -1,5 +1,6 @@
 import api from "../api/axios";
 import { bookingService } from "./bookingService";
+import { readJson } from "./buyerStorage";
 
 const TICKET_URL = "/Ticket";
 
@@ -9,11 +10,28 @@ const normalizeTicket = (ticket) => ({
   status: Number(ticket.status ?? 0),
 });
 
+const mapLocalCheckInRecord = (record) =>
+  normalizeTicket({
+    id: record.ticketId || record.id,
+    ticketCode: record.ticketCode,
+    eventTitle: record.eventTitle,
+    buyerEmail: record.buyerEmail,
+    status: record.checkInTime && record.checkInTime !== "Not checked in" ? 1 : 0,
+    issuedAt: record.createdAt,
+    usedAt: record.checkInTime && record.checkInTime !== "Not checked in" ? record.checkInTime : null,
+    notes: record.notes,
+    source: "Local mirror",
+  });
+
+const getLocalCheckInTickets = () =>
+  readJson("checkIns", [])
+    .filter((record) => record?.ticketCode)
+    .map(mapLocalCheckInRecord);
+
 export const ticketService = {
   getAll: async () => {
     const bookings = await bookingService.getAll();
-
-    return bookings.flatMap((booking) =>
+    const backendTickets = bookings.flatMap((booking) =>
       (booking.tickets ?? []).map((ticket) =>
         normalizeTicket({
           ...ticket,
@@ -28,6 +46,12 @@ export const ticketService = {
         })
       )
     );
+    const backendCodes = new Set(backendTickets.map((ticket) => ticket.ticketCode));
+    const localTickets = getLocalCheckInTickets().filter(
+      (ticket) => ticket.ticketCode && !backendCodes.has(ticket.ticketCode)
+    );
+
+    return [...backendTickets, ...localTickets];
   },
 
   getById: async (id) => {

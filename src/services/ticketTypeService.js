@@ -11,14 +11,19 @@ const normalizeTicketType = (ticketType, eventId) => {
     Number(adjustment.purchased || 0) > 0 &&
     (adjustment.lastKnownAvailable === null || rawAvailable >= Number(adjustment.lastKnownAvailable));
   const localPurchased = shouldApplyLocalPurchase ? Number(adjustment.purchased || 0) : 0;
+  const ticketsLeft = Math.max(0, rawAvailable - localPurchased);
+  const soldQuantity = Number(ticketType.soldQuantity ?? 0) + localPurchased;
+  const totalStock = ticketsLeft + soldQuantity;
 
   return {
     ...ticketType,
     eventId: ticketType.eventId ?? eventId,
     eventSectionId: ticketType.eventSectionId ?? "",
     price: Number(ticketType.price ?? 0),
-    quantityAvailable: Math.max(0, rawAvailable - localPurchased),
-    soldQuantity: Number(ticketType.soldQuantity ?? 0) + localPurchased,
+    quantityAvailable: ticketsLeft,
+    ticketsLeft,
+    soldQuantity,
+    totalStock,
   };
 };
 
@@ -40,13 +45,17 @@ const mapCreateTicketTypeRequest = (data) => ({
 const getEventId = (event) => event.backendId ?? event.id;
 
 export const ticketTypeService = {
-  getByEventId: async (eventId) => {
-    const response = await api.get(`${TICKET_TYPE_URL}/event/${eventId}`);
+  getByEventId: async (eventId, tenantSlug) => {
+    const response = await api.get(`${TICKET_TYPE_URL}/event/${eventId}`, {
+      headers: tenantSlug ? { "X-Tenant-Slug": tenantSlug } : undefined,
+    });
     return response.data.map((ticketType) => normalizeTicketType(ticketType, eventId));
   },
 
-  getAvailableByEventId: async (eventId) => {
-    const response = await api.get(`${TICKET_TYPE_URL}/event/${eventId}/available`);
+  getAvailableByEventId: async (eventId, tenantSlug) => {
+    const response = await api.get(`${TICKET_TYPE_URL}/event/${eventId}/available`, {
+      headers: tenantSlug ? { "X-Tenant-Slug": tenantSlug } : undefined,
+    });
     return response.data.map((ticketType) => normalizeTicketType(ticketType, eventId));
   },
 
@@ -77,10 +86,11 @@ export const ticketTypeService = {
   },
 };
 
-export const getTicketTypes = (eventId) =>
-  eventId ? ticketTypeService.getByEventId(eventId) : ticketTypeService.getAll();
+export const getTicketTypes = (eventId, tenantSlug) =>
+  eventId ? ticketTypeService.getByEventId(eventId, tenantSlug) : ticketTypeService.getAll();
 
-export const getAvailableTicketTypes = (eventId) => ticketTypeService.getAvailableByEventId(eventId);
+export const getAvailableTicketTypes = (eventId, tenantSlug) =>
+  ticketTypeService.getAvailableByEventId(eventId, tenantSlug);
 
 export const getTicketTypeById = (id) => ticketTypeService.getById(id);
 

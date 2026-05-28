@@ -37,6 +37,15 @@ const formatExpiry = (value) => {
   return `${digits.slice(0, 2)}/${digits.slice(2)}`;
 };
 
+const getEventTenantSlug = (event) => {
+  if (event?.tenantSlug) return event.tenantSlug;
+  if (event?.schemaName?.startsWith("tenant_")) {
+    return event.schemaName.replace(/^tenant_/, "").replace(/_events$/, "");
+  }
+
+  return "";
+};
+
 function PaymentPage() {
   const { eventId } = useParams();
   const navigate = useNavigate();
@@ -46,6 +55,8 @@ function PaymentPage() {
   const [ticketTypes, setTicketTypes] = useState([]);
   const [couponCode, setCouponCode] = useState("");
   const [couponMessage, setCouponMessage] = useState("");
+  const [bookingError, setBookingError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(null);
   const [payment, setPayment] = useState({
     email: searchParams.get("email") || user?.email || "",
@@ -64,10 +75,11 @@ function PaymentPage() {
 
   useEffect(() => {
     if (!event?.id) return;
+    const eventTenantSlug = getEventTenantSlug(event);
 
-    getTicketTypes(event.backendId || event.id)
-      .then((types) => setTicketTypes(types.length ? types : fallbackTicketTypes))
-      .catch(() => setTicketTypes(fallbackTicketTypes));
+    getTicketTypes(event.backendId || event.id, eventTenantSlug)
+      .then((types) => setTicketTypes(types.length ? types : event.isBackendEvent ? [] : fallbackTicketTypes))
+      .catch(() => setTicketTypes(event.isBackendEvent ? [] : fallbackTicketTypes));
   }, [event]);
 
   if (!event) {
@@ -92,20 +104,43 @@ function PaymentPage() {
 
   const confirmBooking = async (submitEvent) => {
     submitEvent.preventDefault();
+    setBookingError("");
+    setSubmitting(true);
 
     const ticketCode = `EVX-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
     let backendBooking = null;
 
-    if (event.isBackendEvent && user?.id && selectedTicketTypeId) {
+    if (event.isBackendEvent) {
+      if (!user?.id) {
+        setBookingError("Please log in again before buying a ticket.");
+        setSubmitting(false);
+        return;
+      }
+
+      if (!selectedTicketTypeId || !selectedTicketType?.id) {
+        setBookingError("Please choose a valid ticket type before payment.");
+        setSubmitting(false);
+        return;
+      }
+
       try {
         backendBooking = await createBooking({
           userId: user.id,
           eventId: event.backendId || event.id,
           ticketTypeId: selectedTicketTypeId,
+          tenantSlug: getEventTenantSlug(event),
           quantity,
         });
       } catch (error) {
-        console.warn("Backend booking failed, keeping frontend ticket fallback.", error);
+        const message =
+          error?.response?.data?.message ||
+          error?.response?.data ||
+          error?.message ||
+          "Backend booking failed. Please try again.";
+
+        setBookingError(typeof message === "string" ? message : "Backend booking failed. Please try again.");
+        setSubmitting(false);
+        return;
       }
     }
 
@@ -162,6 +197,7 @@ function PaymentPage() {
       user,
     });
     setSuccess(ticket);
+    setSubmitting(false);
   };
 
   if (success) {
@@ -190,6 +226,7 @@ function PaymentPage() {
     <section className="buyer-page checkout-page">
       <form className="panel checkout-summary" onSubmit={confirmBooking}>
         <h1>Payment</h1>
+        {bookingError && <div className="form-alert">{bookingError}</div>}
         <div className="checkout-event">
           <span style={{ backgroundImage: `url("${event.image}")` }} />
           <div>
@@ -272,8 +309,8 @@ function PaymentPage() {
           <Link className="auth-secondary-button" to={`/buyer/checkout/${event.id}?ticketTypeId=${selectedTicketTypeId}&quantity=${quantity}`}>
             Back
           </Link>
-          <button className="primary-button" type="submit">
-            <FaCreditCard /> Pay and get ticket
+          <button className="primary-button" disabled={submitting} type="submit">
+            <FaCreditCard /> {submitting ? "Creating booking..." : "Pay and get ticket"}
           </button>
         </div>
       </form>
