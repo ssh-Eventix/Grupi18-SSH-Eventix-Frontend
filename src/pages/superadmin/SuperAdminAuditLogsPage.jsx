@@ -1,15 +1,16 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { auditLogsService } from "../../services/auditLogsService";
+import "./SuperAdmin.css";
 
 const actionOptions = [
-  "",
-  "Create",
-  "Update",
-  "Delete",
-  "Login",
-  "Logout",
-  "Payment",
-  "FailedPayment",
+  { label: "All actions", value: "" },
+  { label: "Create", value: 1 },
+  { label: "Update", value: 2 },
+  { label: "Delete", value: 3 },
+  { label: "Login", value: 4 },
+  { label: "Logout", value: 5 },
+  { label: "Payment", value: 6 },
+  { label: "Failed payment", value: 7 },
 ];
 
 export default function SuperAdminAuditLogsPage() {
@@ -19,6 +20,7 @@ export default function SuperAdminAuditLogsPage() {
 
   const [filters, setFilters] = useState({
     search: "",
+    tenantId: "",
     entityName: "",
     userId: "",
     action: "",
@@ -43,6 +45,7 @@ export default function SuperAdminAuditLogsPage() {
 
       const params = {
         ...filters,
+        tenantId: filters.tenantId || undefined,
         userId: filters.userId || undefined,
         search: filters.search || undefined,
         entityName: filters.entityName || undefined,
@@ -56,7 +59,7 @@ export default function SuperAdminAuditLogsPage() {
       setLogs(data.items || []);
       setPagination({
         totalCount: data.totalCount || 0,
-        totalPages: data.totalPages || 1,
+        totalPages: Math.max(1, Math.ceil((data.totalCount || 0) / (data.pageSize || 20))),
       });
     } catch (error) {
       console.error(error);
@@ -83,6 +86,7 @@ export default function SuperAdminAuditLogsPage() {
   const clearFilters = () => {
     setFilters({
       search: "",
+      tenantId: "",
       entityName: "",
       userId: "",
       action: "",
@@ -96,6 +100,7 @@ export default function SuperAdminAuditLogsPage() {
   const exportCsv = () => {
     const headers = [
       "Date",
+      "Tenant",
       "User",
       "Action",
       "Entity",
@@ -106,6 +111,7 @@ export default function SuperAdminAuditLogsPage() {
 
     const rows = logs.map((log) => [
       log.createdAtUtc,
+      log.tenantName || log.tenantId || "System",
       log.userEmail || log.userId,
       log.action,
       log.entityName,
@@ -184,6 +190,13 @@ export default function SuperAdminAuditLogsPage() {
         />
 
         <input
+          name="tenantId"
+          placeholder="Tenant ID..."
+          value={filters.tenantId}
+          onChange={handleFilterChange}
+        />
+
+        <input
           name="entityName"
           placeholder="Entity name..."
           value={filters.entityName}
@@ -203,10 +216,10 @@ export default function SuperAdminAuditLogsPage() {
           onChange={handleFilterChange}
         >
           {actionOptions.map((action) => (
-            <option key={action} value={action}>
-              {action || "All actions"}
-            </option>
-          ))}
+          <option key={action.label} value={action.value}>
+            {action.label}
+          </option>
+        ))}
         </select>
 
         <input
@@ -235,6 +248,7 @@ export default function SuperAdminAuditLogsPage() {
             <thead>
               <tr>
                 <th>Date</th>
+                <th>Tenant</th>
                 <th>User</th>
                 <th>Action</th>
                 <th>Entity</th>
@@ -246,13 +260,14 @@ export default function SuperAdminAuditLogsPage() {
             <tbody>
               {logs.length === 0 ? (
                 <tr>
-                  <td colSpan="6">No audit logs found.</td>
+                  <td colSpan="7">No audit logs found.</td>
                 </tr>
               ) : (
                 logs.map((log) => (
-                  <>
-                    <tr key={log.id}>
+                    <React.Fragment key={log.id}>
+                    <tr>
                       <td>{new Date(log.createdAtUtc).toLocaleString()}</td>
+                      <td>{log.tenantName || log.tenantId || "System"}</td>
                       <td>{log.userEmail || log.userId}</td>
                       <td>
                         <span className={getActionClass(log.action)}>
@@ -274,7 +289,7 @@ export default function SuperAdminAuditLogsPage() {
 
                     {expandedId === log.id && (
                       <tr>
-                        <td colSpan="6">
+                        <td colSpan="7">
                           <div className="json-details">
                             <h4>Old Values</h4>
                             <pre>{formatJson(log.oldValues)}</pre>
@@ -285,7 +300,7 @@ export default function SuperAdminAuditLogsPage() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </React.Fragment>
                 ))
               )}
             </tbody>
