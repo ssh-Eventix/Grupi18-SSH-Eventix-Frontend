@@ -41,6 +41,14 @@ if (url.includes("/Events/public")) {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
+    if (
+    url.includes("/Venue/public") ||
+    url.includes("/VenueSection/public")
+  ) {
+    delete config.headers["X-Tenant-Slug"];
+    return config;
+  }
+
   if (tenantSlug) {
     config.headers["X-Tenant-Slug"] = tenantSlug;
   } else {

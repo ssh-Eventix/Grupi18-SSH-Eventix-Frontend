@@ -16,7 +16,7 @@ export default function EventsPage() {
     async function loadLookups() {
       try {
         const [venueData, categoryData] = await Promise.all([
-          venuesService.getAll(),
+          venuesService.getAllAvailable(),
           eventCategoriesService.getAll(),
         ]);
 
@@ -43,7 +43,9 @@ export default function EventsPage() {
     { value: "", label: "Select venue" },
     ...venues.map((venue) => ({
       value: venue.id,
-      label: venue.code ? `${venue.name} (${venue.code})` : venue.name,
+      label: `${venue.code ? `${venue.name} (${venue.code})` : venue.name} ${
+        venue.source === "tenant" ? "- Tenant" : "- Public"
+      }`,
     })),
   ], [venues]);
 

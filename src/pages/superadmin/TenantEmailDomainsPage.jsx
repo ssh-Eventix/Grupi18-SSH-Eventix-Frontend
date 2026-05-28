@@ -154,9 +154,6 @@ export default function TenantEmailDomainsPage() {
           <h1>Tenant Email Domains</h1>
           <p>Define which email domains are allowed for each tenant and which default role they create.</p>
         </div>
-        <button className="secondary-action" type="button" onClick={loadData} disabled={loading}>
-          <FaRedo /> Refresh
-        </button>
       </header>
 
       {error && <div className="form-alert">{error}</div>}

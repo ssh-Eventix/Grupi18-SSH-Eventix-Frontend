@@ -1,10 +1,15 @@
 import api from "./api";
 
-const URL = "/EventSections";
+const URL = "/EventSection";
 
 export const eventSectionsService = {
   getAll: async () => {
     const response = await api.get(URL);
+    return response.data;
+  },
+
+  getByEventId: async (eventId) => {
+    const response = await api.get(`${URL}/event/${eventId}`);
     return response.data;
   },
 

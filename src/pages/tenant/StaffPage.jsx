@@ -144,9 +144,6 @@ export default function StaffPage() {
           <h1>Staff</h1>
           <p>Create staff users for check-in and event operations.</p>
         </div>
-        <button type="button" onClick={loadStaff} disabled={loading}>
-          {loading ? "Refreshing..." : "Refresh"}
-        </button>
       </div>
 
       {error && <div className="form-alert">{error}</div>}
@@ -221,7 +218,6 @@ export default function StaffPage() {
           fetchData={fetchStaff}
           defaultPageSize={5}
           pageSizeOptions={[5, 10, 20]}
-          refreshKey={`${staff.length}-${loading}`}
           actions={{
             custom: [
               {

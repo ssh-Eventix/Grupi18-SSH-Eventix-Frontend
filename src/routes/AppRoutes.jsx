@@ -6,7 +6,6 @@ import BuyerLayout from "../layouts/BuyerLayout";
 import SuperAdminLayout from "../layouts/SuperAdminLayout";
 import TenantLayout from "../layouts/TenantLayout";
 import ProtectedRoute from "../auth/ProtectedRoute";
-import SuperAdminReviewsPage from "../pages/superadmin/SuperAdminReviewsPage";
 import { startupPathFromToken } from "../utils/routeDestinations";
 
 import HomePage from "../pages/buyer/HomePage";
@@ -55,6 +54,8 @@ import {
 import VenueSectionsPage from "../pages/tenant/VenueSectionsPage";
 import VenuesPage from "../pages/tenant/VenuesPage";
 import TenantAdminsPage from "../pages/superadmin/TenantAdminsPage";
+import SuperAdminAuditLogsPage from "../pages/superadmin/SuperAdminAuditLogsPage";
+import SuperAdminVenuesPage from "../pages/superadmin/SuperAdminVenuesPage";
 
 const StartRedirect = () => {
   return <Navigate to={startupPathFromToken()} replace />;
@@ -92,8 +93,6 @@ function AppRoutes() {
           <Route path="event-sessions" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><EventSessionsPage /></TenantAccessRoute>} />
           <Route path="speakers" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><SpeakersPage /></TenantAccessRoute>} />
           <Route path="coupons" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><CouponsPage /></TenantAccessRoute>} />
-          <Route path="venues" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><VenuesPage /></TenantAccessRoute>} />
-          <Route path="venue-sections" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><VenueSectionsPage /></TenantAccessRoute>} />
           <Route path="tickets" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><TicketTypesPage /></TenantAccessRoute>} />
           <Route path="orders" element={<BookingsPage />} />
           <Route path="payments" element={<TenantAccessRoute allowedRoles={["Admin", "TenantAdmin"]}><PaymentsPage /></TenantAccessRoute>} />
@@ -117,6 +116,8 @@ function AppRoutes() {
           <Route path="tenant-domains" element={<TenantEmailDomainsPage />} />
           <Route path="tenant-admins" element={<TenantAdminsPage />} />
           <Route path="impersonate" element={<ImpersonatePage />} />
+          <Route path="/superadmin/audit-logs" element={<SuperAdminAuditLogsPage />} />
+          <Route path="/superadmin/venues" element={<SuperAdminVenuesPage />} />
         </Route>
       </Route>
 

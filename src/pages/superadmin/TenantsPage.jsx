@@ -165,7 +165,6 @@ export default function TenantsPage() {
           <h1>Tenants</h1>
           <p>Create and maintain the organizations that use Eventix. This page should only contain platform-level tenant data.</p>
         </div>
-        <button className="secondary-action" type="button" onClick={loadTenants}><FaRedo /> Refresh</button>
       </header>
 
       {error && <div className="form-alert">{error}</div>}
