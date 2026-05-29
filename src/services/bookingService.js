@@ -6,15 +6,41 @@ const BOOKING_URL = "/Booking";
 const normalizeTicket = (ticket) => ({
   ...ticket,
   qrCode: ticket.qrCode ?? ticket.qRCode ?? ticket.QRCode ?? "",
+  buyerEmail:
+    ticket.buyerEmail ??
+    ticket.BuyerEmail ??
+    ticket.email ??
+    ticket.Email ??
+    ticket.emailedTo ??
+    ticket.EmailedTo ??
+    "",
 });
 
 const normalizeBooking = (booking) => {
-  const tickets = Array.isArray(booking?.tickets) ? booking.tickets.map(normalizeTicket) : [];
+  const buyerEmail =
+    booking?.buyerEmail ??
+    booking?.BuyerEmail ??
+    booking?.email ??
+    booking?.Email ??
+    booking?.userEmail ??
+    booking?.UserEmail ??
+    "";
+  const tickets = Array.isArray(booking?.tickets)
+    ? booking.tickets.map((ticket) => {
+        const normalizedTicket = normalizeTicket(ticket);
+
+        return {
+          ...normalizedTicket,
+          buyerEmail: normalizedTicket.buyerEmail || buyerEmail,
+        };
+      })
+    : [];
   const id = booking?.id ?? booking?.Id ?? booking?.bookingId ?? booking?.BookingId ?? "";
 
   return {
     ...booking,
     id,
+    buyerEmail,
     tickets,
     ticketCount: tickets.length,
     quantity: booking.quantity ?? tickets.length,
@@ -60,9 +86,11 @@ export const bookingService = {
     return normalizeBooking(response.data);
   },
 
-  updateStatus: async (id, status) => {
+  updateStatus: async (id, status, tenantSlug) => {
     const response = await api.put(`${BOOKING_URL}/${id}/status`, {
       status: typeof status === "string" ? status : status?.status,
+    }, {
+      headers: tenantSlug ? { "X-Tenant-Slug": tenantSlug } : undefined,
     });
 
     return response.data;
@@ -82,7 +110,7 @@ export const getBookingsByUserId = (userId) => bookingService.getByUserId(userId
 
 export const createBooking = (data) => bookingService.create(data);
 
-export const updateBookingStatus = (id, status) => bookingService.updateStatus(id, status);
+export const updateBookingStatus = (id, status, tenantSlug) => bookingService.updateStatus(id, status, tenantSlug);
 
 export const deleteBooking = (id) => bookingService.delete(id);
 
