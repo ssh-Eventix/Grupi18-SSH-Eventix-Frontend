@@ -11,6 +11,7 @@ import {
   FaTicketAlt,
   FaUserTie,
 } from "react-icons/fa";
+import "./Buyer.css";
 import AuthPromptModal from "../../components/AuthPromptModal";
 import { eventsApi } from "../../api/eventsApi";
 import { useAuth } from "../../auth/AuthContext";
@@ -21,11 +22,8 @@ import {
   isFavoriteEvent,
   toggleFavoriteEvent,
 } from "../../services/buyerStorage";
+import ReactMarkdown from "react-markdown";
 
-const fallbackTicketTypes = [
-  { id: "regular", name: "Regular", price: 15, quantityAvailable: 50 },
-  { id: "vip", name: "VIP", price: 35, quantityAvailable: 20 },
-];
 
 const getEventTenantSlug = (event) => {
   if (event?.tenantSlug) return event.tenantSlug;
@@ -80,22 +78,15 @@ function EventDetailsPage() {
       .then(setReviews)
       .catch(() => setReviews([]));
 
-    if (isPublicPage) {
-      setTicketTypes(fallbackTicketTypes);
-      setSelectedTicketTypeId(fallbackTicketTypes[0].id);
-      return;
-    }
-
     getAvailableTicketTypes(event.backendId || event.id, eventTenantSlug)
-      .then((types) => {
-        const nextTypes = types.length ? types : fallbackTicketTypes;
-        setTicketTypes(nextTypes);
-        setSelectedTicketTypeId(nextTypes[0]?.id || "");
-      })
-      .catch(() => {
-        setTicketTypes(fallbackTicketTypes);
-        setSelectedTicketTypeId(fallbackTicketTypes[0].id);
-      });
+  .then((types) => {
+    setTicketTypes(types);
+    setSelectedTicketTypeId(types[0]?.id || "");
+  })
+  .catch(() => {
+    setTicketTypes([]);
+    setSelectedTicketTypeId("");
+  });
   }, [event, isPublicPage]);
 
   const selectedTicketType = useMemo(
@@ -210,7 +201,11 @@ function EventDetailsPage() {
         <div>
           <span>{event.category}</span>
           <h1>{event.title}</h1>
-          <p>{event.description}</p>
+          <div className="event-marketing-description">
+            <ReactMarkdown>
+              {event.description}
+            </ReactMarkdown>
+          </div>
         </div>
       </div>
 
@@ -246,13 +241,18 @@ function EventDetailsPage() {
             <div>
               <button type="button" onClick={() => setQuantity((value) => Math.max(1, value - 1))}><FaMinus /></button>
               <strong>{quantity}</strong>
-              <button type="button" onClick={() => setQuantity((value) => Math.min(Number(selectedTicketType?.quantityAvailable || 50), value + 1))}><FaPlus /></button>
+              <button type="button" onClick={() => setQuantity((value) => Math.min(Number(selectedTicketType?.quantityAvailable || 1), value + 1))}><FaPlus /></button>
             </div>
           </div>
           <strong>EUR {Number(selectedTicketType?.price || 0) * quantity}</strong>
-          <button className="primary-button" type="button" onClick={buyTicket}>
-            <FaTicketAlt /> Buy ticket
-          </button>
+          <button
+          className="primary-button"
+          type="button"
+          onClick={buyTicket}
+          disabled={!selectedTicketTypeId}
+        >
+          <FaTicketAlt /> Buy ticket
+        </button>
         </aside>
       </div>
 

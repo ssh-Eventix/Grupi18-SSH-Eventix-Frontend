@@ -5,17 +5,6 @@ import { eventsApi } from "../../api/eventsApi";
 import { useAuth } from "../../auth/AuthContext";
 import { getTicketTypes } from "../../services/ticketTypeService";
 
-const parseStartPrice = (price) => {
-  if (price === "Free") return 0;
-  const match = price.match(/\d+/);
-  return match ? Number(match[0]) : 20;
-};
-
-const fallbackTicketTypes = [
-  { id: "regular", name: "Regular", price: 15, quantityAvailable: 50 },
-  { id: "vip", name: "VIP", price: 35, quantityAvailable: 20 },
-];
-
 const normalizeEmail = (email) => {
   if (Array.isArray(email)) {
     return email.find(Boolean) || "";
@@ -55,22 +44,19 @@ function CheckoutPage() {
     setTicketTypeError("");
 
     getTicketTypes(event.backendId || event.id, eventTenantSlug)
-      .then((types) => {
-        const nextTypes = types.length ? types : event.isBackendEvent ? [] : fallbackTicketTypes;
-        setTicketTypes(nextTypes);
-        setSelectedTicketTypeId(searchParams.get("ticketTypeId") || nextTypes[0]?.id || "");
-        if (!nextTypes.length && event.isBackendEvent) {
-          setTicketTypeError("No active ticket types were found for this event.");
-        }
-      })
-      .catch(() => {
-        const nextTypes = event.isBackendEvent ? [] : fallbackTicketTypes;
-        setTicketTypes(nextTypes);
-        setSelectedTicketTypeId(searchParams.get("ticketTypeId") || nextTypes[0]?.id || "");
-        if (event.isBackendEvent) {
-          setTicketTypeError("Ticket types could not be loaded for this event.");
-        }
-      });
+  .then((types) => {
+    setTicketTypes(types);
+    setSelectedTicketTypeId(searchParams.get("ticketTypeId") || types[0]?.id || "");
+
+    if (!types.length) {
+      setTicketTypeError("No active ticket types were found for this event.");
+    }
+  })
+  .catch(() => {
+    setTicketTypes([]);
+    setSelectedTicketTypeId("");
+    setTicketTypeError("Ticket types could not be loaded for this event.");
+  });
   }, [event, searchParams]);
 
   if (!event) {
@@ -84,9 +70,9 @@ function CheckoutPage() {
   }
 
   const selectedTicketType = ticketTypes.find((type) => type.id === selectedTicketTypeId);
-  const unitPrice = selectedTicketType?.price ?? parseStartPrice(event.price);
+  const unitPrice = Number(selectedTicketType?.price || 0);
+  const maxQuantity = Math.max(1, Number(selectedTicketType?.quantityAvailable || 1));
   const subtotal = unitPrice * quantity;
-  const maxQuantity = Math.max(1, Number(selectedTicketType?.quantityAvailable || 25));
 
   const goToPayment = (submitEvent) => {
     submitEvent.preventDefault();

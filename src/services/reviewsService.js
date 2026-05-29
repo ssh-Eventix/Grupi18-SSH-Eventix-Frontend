@@ -37,4 +37,12 @@ export const reviewsService = {
 
     return response.data;
   },
+
+  getByUserId: async (userId, tenantSlug) => {
+  const response = await api.get(`${URL}/user/${userId}`, {
+    headers: tenantSlug ? { "X-Tenant-Slug": tenantSlug } : undefined,
+  });
+
+  return response.data;
+},
 };

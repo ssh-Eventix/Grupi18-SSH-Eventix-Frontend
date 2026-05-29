@@ -14,28 +14,66 @@ import {
 } from "react-icons/fa";
 import { useAuth } from "../../auth/AuthContext";
 import { eventsApi } from "../../api/eventsApi";
-import { buyerEvents, buyerTickets } from "./buyerData";
-import {
-  getBuyerNotifications,
-  getBuyerReviews,
-  getBuyerTickets,
-  getFavoriteEvents,
-  readObject,
-  toggleFavoriteEvent,
-  writeJson,
-} from "../../services/buyerStorage";
+import { bookingService } from "../../services/bookingService";
+import { reviewsService } from "../../services/reviewsService";
+import notificationService from "../../services/notificationService";
+import { usersService } from "../../services/usersService";
+import { getFavoriteEvents, toggleFavoriteEvent } from "../../services/buyerStorage";
 
-const buildTicketQrValue = (ticket) => {
-  return JSON.stringify({
+const getUserId = (user) => user?.id || user?.userId || user?.publicUserId;
+
+const isWeekendEvent = (event) => {
+  if (!event.startUtc) return false;
+  const day = new Date(event.startUtc).getDay();
+  return day === 0 || day === 6;
+};
+
+const isFreeEvent = (event) =>
+  event.isFree === true || event.price === "Free" || Number(event.price) === 0;
+
+const sortTopEvents = (events) =>
+  [...events].sort((a, b) => {
+    const aScore = Number(a.reviewCount || a.bookingsCount || a.soldTickets || 0);
+    const bScore = Number(b.reviewCount || b.bookingsCount || b.soldTickets || 0);
+    return bScore - aScore;
+  });
+
+const filterEvents = (events, filterType) => {
+  if (filterType === "weekend") return events.filter(isWeekendEvent);
+  if (filterType === "free") return events.filter(isFreeEvent);
+  if (filterType === "top") return sortTopEvents(events);
+  return events;
+};
+
+const formatTicketDate = (value) =>
+  value ? new Date(value).toLocaleDateString() : "Date TBA";
+
+const normalizeTicketFromBooking = (booking) => {
+  const tickets = booking.tickets || [];
+
+  return tickets.map((ticket) => ({
+    id: ticket.id,
+    event: booking.eventTitle || booking.event?.title || "Event",
+    code: ticket.ticketCode || ticket.code || "",
+    date: formatTicketDate(booking.bookingDate || ticket.issuedAt),
+    seat: ticket.ticketTypeName || ticket.ticketType || "Regular",
+    status: ticket.statusName || ticket.status || "Confirmed",
+    quantity: booking.quantity || tickets.length,
+    referenceNumber: booking.referenceNumber,
+    backendSynced: true,
+    qrCode: ticket.qrCode || ticket.qRCode || ticket.QRCode || ticket.ticketCode,
+  }));
+};
+
+const buildTicketQrValue = (ticket) =>
+  JSON.stringify({
     app: "Eventix",
     ticketCode: ticket.code,
     event: ticket.event,
     date: ticket.date,
     seat: ticket.seat,
     status: ticket.status || "Confirmed",
-    emailedTo: ticket.emailedTo || ticket.email || null,
   });
-};
 
 const EventCards = ({ events, onFavoriteClick }) => (
   <div className="event-card-grid">
@@ -63,24 +101,19 @@ const EventCards = ({ events, onFavoriteClick }) => (
   </div>
 );
 
-const normalizeEmail = (email) => {
-  if (Array.isArray(email)) {
-    return email.find(Boolean) || "";
-  }
-
-  return typeof email === "string" ? email : "";
-};
-
-export function BuyerEventsPage({ title, filter }) {
+export function BuyerEventsPage({ title, filterType }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const [events, setEvents] = useState(buyerEvents);
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    eventsApi.browse({ publicOnly: false }).then(setEvents);
-  }, []);
-
-  const visibleEvents = events.filter(filter ?? (() => true));
+    eventsApi
+      .browse({ publicOnly: false })
+      .then((data) => setEvents(filterEvents(data, filterType)))
+      .catch(() => setEvents([]))
+      .finally(() => setLoading(false));
+  }, [filterType]);
 
   return (
     <section className="buyer-page simple-buyer-page">
@@ -88,10 +121,20 @@ export function BuyerEventsPage({ title, filter }) {
         <h1>{title}</h1>
         <Link to="/buyer">Back to Discover</Link>
       </div>
-      <EventCards
-        events={visibleEvents}
-        onFavoriteClick={() => navigate("/login", { state: { from: location } })}
-      />
+
+      {loading ? (
+        <div className="empty-state">Loading events...</div>
+      ) : events.length ? (
+        <EventCards
+          events={events}
+          onFavoriteClick={() => navigate("/login", { state: { from: location } })}
+        />
+      ) : (
+        <div className="empty-state">
+          <strong>No events found</strong>
+          <p>No backend events match this page yet.</p>
+        </div>
+      )}
     </section>
   );
 }
@@ -123,9 +166,26 @@ export function FavoritesPage() {
 }
 
 export function TicketsPage() {
+  const { user, tenantSlug } = useAuth();
   const [selectedTicket, setSelectedTicket] = useState(null);
-  const storedTickets = useMemo(() => getBuyerTickets(), []);
-  const tickets = [...storedTickets, ...buyerTickets];
+  const [tickets, setTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const userId = getUserId(user);
+
+    if (!userId) {
+      setTickets([]);
+      setLoading(false);
+      return;
+    }
+
+    bookingService
+      .getByUserId(userId, tenantSlug)
+      .then((bookings) => setTickets(bookings.flatMap(normalizeTicketFromBooking)))
+      .catch(() => setTickets([]))
+      .finally(() => setLoading(false));
+  }, [user, tenantSlug]);
 
   return (
     <section className="buyer-page simple-buyer-page">
@@ -133,41 +193,49 @@ export function TicketsPage() {
         <h1>My Tickets</h1>
         <Link to="/buyer">Find more events</Link>
       </div>
-      <div className="ticket-list">
-        {tickets.map((ticket) => (
-          <article className="ticket-card" key={ticket.id}>
-            <span><FaTicketAlt /></span>
-            <div>
-              <strong>{ticket.event}</strong>
-              <small>{ticket.date} - {ticket.seat || ticket.ticketType || "Regular"}</small>
-              <code>{ticket.code}</code>
-              {ticket.quantity && <small>Quantity: {ticket.quantity}</small>}
-              {ticket.referenceNumber && <small>Booking: {ticket.referenceNumber}</small>}
-              {ticket.backendSynced && <small>Saved in backend</small>}
-              {ticket.emailedTo && <small>Ticket emailed to {ticket.emailedTo}</small>}
-              {!ticket.emailedTo && ticket.email && <small>Confirmation sent to {ticket.email}</small>}
-            </div>
-            <button type="button" onClick={() => setSelectedTicket(ticket)}>
-              <FaQrcode /> View QR
-            </button>
-          </article>
-        ))}
-      </div>
+
+      {loading ? (
+        <div className="empty-state">Loading tickets...</div>
+      ) : tickets.length ? (
+        <div className="ticket-list">
+          {tickets.map((ticket) => (
+            <article className="ticket-card" key={ticket.id}>
+              <span><FaTicketAlt /></span>
+              <div>
+                <strong>{ticket.event}</strong>
+                <small>{ticket.date} - {ticket.seat}</small>
+                <code>{ticket.code}</code>
+                {ticket.quantity && <small>Quantity: {ticket.quantity}</small>}
+                {ticket.referenceNumber && <small>Booking: {ticket.referenceNumber}</small>}
+              </div>
+              <button type="button" onClick={() => setSelectedTicket(ticket)}>
+                <FaQrcode /> View QR
+              </button>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="empty-state">
+          <strong>No tickets yet</strong>
+          <p>Tickets bought from backend bookings will show here.</p>
+        </div>
+      )}
+
       {selectedTicket && (
         <div className="qr-overlay" role="dialog" aria-modal="true">
           <article className="qr-modal panel">
             <button className="qr-close" type="button" onClick={() => setSelectedTicket(null)}>Close</button>
-            <div className="qr-box" aria-label={`QR ticket ${selectedTicket.code}`}>
+            <div className="qr-box">
               <QRCodeSVG
                 bgColor="#ffffff"
                 fgColor="#0f172a"
                 level="M"
                 size={174}
-                value={buildTicketQrValue(selectedTicket)}
+                value={selectedTicket.qrCode || buildTicketQrValue(selectedTicket)}
               />
             </div>
             <h2>{selectedTicket.event}</h2>
-            <p>{selectedTicket.date} - {selectedTicket.seat || selectedTicket.ticketType}</p>
+            <p>{selectedTicket.date} - {selectedTicket.seat}</p>
             <code>{selectedTicket.code}</code>
           </article>
         </div>
@@ -177,39 +245,36 @@ export function TicketsPage() {
 }
 
 export function ProfilePage() {
-  const navigate = useNavigate();
   const { logout, tenantSlug, user } = useAuth();
   const [showReviews, setShowReviews] = useState(false);
-  const savedProfile = readObject("buyerProfile", {});
-  const userEmail = normalizeEmail(user?.email);
-  const userName = typeof user?.fullName === "string" ? user.fullName : "";
-  const savedEmail = savedProfile.email === "buyer@eventix.test" ? "" : normalizeEmail(savedProfile.email);
-  const displayEmail = userEmail || savedEmail || "buyer@eventix.test";
-  const [form, setForm] = useState({
-    fullName: savedProfile.fullName || userName || displayEmail.split("@")[0].replace(/[._-]/g, " "),
-    email: displayEmail,
-    city: savedProfile.city || "Prishtina",
-    phone: savedProfile.phone || "",
-  });
-  const tickets = getBuyerTickets();
+  const [profile, setProfile] = useState(user || {});
+  const [tickets, setTickets] = useState([]);
+  const [reviews, setReviews] = useState([]);
   const favorites = getFavoriteEvents();
-  const reviews = getBuyerReviews();
 
-  const initials = String(form.fullName || "Buyer")
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("") || "BA";
+  const userId = getUserId(user);
 
-  const handleLogout = () => {
-    logout("/");
-  };
+  useEffect(() => {
+    if (!userId) return;
 
-  const saveProfile = () => {
-    writeJson("buyerProfile", form);
-    writeJson("user", { ...(user || {}), ...form, role: user?.role || "Buyer" });
-  };
+    usersService.getById(userId).then(setProfile).catch(() => setProfile(user || {}));
+    bookingService.getByUserId(userId, tenantSlug).then(setTickets).catch(() => setTickets([]));
+    reviewsService.getByUserId(userId, tenantSlug).then(setReviews).catch(() => setReviews([]));
+  }, [userId, tenantSlug, user]);
+
+  const fullName =
+    profile.fullName ||
+    `${profile.firstName || ""} ${profile.lastName || ""}`.trim() ||
+    user?.email ||
+    "Buyer";
+
+  const initials =
+    fullName
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join("") || "BA";
 
   return (
     <section className="buyer-page simple-buyer-page">
@@ -217,10 +282,10 @@ export function ProfilePage() {
         <div className="account-avatar">{initials}</div>
         <div>
           <span>Buyer account</span>
-          <h1>{form.fullName}</h1>
-          <p>{form.email}</p>
+          <h1>{fullName}</h1>
+          <p>{profile.email || user?.email}</p>
         </div>
-        <button className="logout-button" type="button" onClick={handleLogout}>
+        <button className="logout-button" type="button" onClick={() => logout("/")}>
           <FaSignOutAlt /> Log out
         </button>
       </div>
@@ -231,28 +296,11 @@ export function ProfilePage() {
             <FaUserCircle />
             <h2>Profile Details</h2>
           </div>
-          <div className="settings-form-grid">
-            <label className="settings-field">
-              Full name
-              <input value={form.fullName} onChange={(input) => setForm((prev) => ({ ...prev, fullName: input.target.value }))} />
-            </label>
-            <label className="settings-field">
-              Email
-              <input type="email" value={form.email} onChange={(input) => setForm((prev) => ({ ...prev, email: input.target.value }))} />
-            </label>
-            <label className="settings-field">
-              City
-              <input value={form.city} onChange={(input) => setForm((prev) => ({ ...prev, city: input.target.value }))} />
-            </label>
-            <label className="settings-field">
-              Phone
-              <input value={form.phone} onChange={(input) => setForm((prev) => ({ ...prev, phone: input.target.value }))} />
-            </label>
-          </div>
-          <button className="primary-button settings-save" type="button" onClick={saveProfile}>Save profile</button>
           <dl className="detail-list">
+            <div><dt>Name</dt><dd>{fullName}</dd></div>
+            <div><dt>Email</dt><dd>{profile.email || user?.email}</dd></div>
             <div><dt>Role</dt><dd>{user?.role || "Buyer"}</dd></div>
-            <div><dt>Tenant</dt><dd>{tenantSlug || "yllka"}</dd></div>
+            <div><dt>Tenant</dt><dd>{tenantSlug || "Public buyer"}</dd></div>
           </dl>
         </article>
 
@@ -262,12 +310,13 @@ export function ProfilePage() {
             <h2>Event Activity</h2>
           </div>
           <div className="activity-stats">
-            <span><strong>{tickets.length}</strong> Tickets</span>
+            <span><strong>{tickets.length}</strong> Bookings</span>
             <span><strong>{favorites.length}</strong> Favorites</span>
             <button type="button" onClick={() => setShowReviews((value) => !value)}>
               <strong>{reviews.length}</strong> Reviews
             </button>
           </div>
+
           {showReviews && (
             <div className="profile-review-list">
               {reviews.length ? reviews.map((review) => (
@@ -279,11 +328,12 @@ export function ProfilePage() {
               )) : (
                 <div className="empty-state compact-empty">
                   <strong>No reviews yet</strong>
-                  <p>Your event reviews will show here.</p>
+                  <p>Your backend reviews will show here.</p>
                 </div>
               )}
             </div>
           )}
+
           <div className="account-actions">
             <Link to="/buyer/tickets">View tickets</Link>
             <Link to="/buyer/favorites">Saved events</Link>
@@ -296,13 +346,24 @@ export function ProfilePage() {
 }
 
 export function BuyerSettingsPage() {
-  const notifications = getBuyerNotifications();
-  const reviews = getBuyerReviews();
-  const savedProfile = readObject("buyerProfile", {});
-  const { user } = useAuth();
-  const userEmail = normalizeEmail(user?.email);
-  const savedEmail = savedProfile.email === "buyer@eventix.test" ? "" : normalizeEmail(savedProfile.email);
-  const displayEmail = userEmail || savedEmail || "buyer@eventix.test";
+  const { user, tenantSlug } = useAuth();
+  const [notifications, setNotifications] = useState([]);
+  const [reviews, setReviews] = useState([]);
+  const userId = getUserId(user);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    notificationService
+      .getByUserId(userId, tenantSlug)
+      .then(setNotifications)
+      .catch(() => setNotifications([]));
+
+    reviewsService
+      .getByUserId(userId, tenantSlug)
+      .then(setReviews)
+      .catch(() => setReviews([]));
+  }, [userId, tenantSlug]);
 
   return (
     <section className="buyer-page simple-buyer-page">
@@ -330,7 +391,7 @@ export function BuyerSettingsPage() {
           )) : (
             <div className="empty-state">
               <strong>No notifications yet</strong>
-              <p>When you buy tickets, booking item notifications will appear here.</p>
+              <p>Backend notifications for this buyer will appear here.</p>
             </div>
           )}
         </article>
@@ -343,14 +404,14 @@ export function BuyerSettingsPage() {
           {reviews.length ? reviews.map((review) => (
             <div className="setting-row" key={review.id}>
               <span>
-                <strong>{review.eventTitle}</strong>
+                <strong>{review.eventTitle || "Event review"}</strong>
                 <small>{review.rating}/5 - {review.comment}</small>
               </span>
             </div>
           )) : (
             <div className="empty-state">
               <strong>No reviews yet</strong>
-              <p>Write a review from an event details page.</p>
+              <p>Reviews saved in backend will appear here.</p>
             </div>
           )}
         </article>
@@ -363,22 +424,12 @@ export function BuyerSettingsPage() {
           <div className="settings-form-grid">
             <label className="settings-field">
               Email address
-              <input type="email" defaultValue={displayEmail} />
-            </label>
-            <label className="settings-field">
-              Preferred city
-              <select defaultValue={savedProfile.city || ""}>
-                <option value="">Any city</option>
-                <option>Prishtina</option>
-                <option>Tirana</option>
-                <option>Prizren</option>
-                <option>Peja</option>
-              </select>
+              <input type="email" readOnly value={user?.email || ""} />
             </label>
           </div>
           <div className="ai-note">
             <FaBell />
-            <span>AI recommendations use your favorites, ticket history, and reviews to suggest better events.</span>
+            <span>AI recommendations can use backend tickets, favorites, and reviews later.</span>
           </div>
         </article>
       </div>

@@ -1,31 +1,20 @@
 import api from "../api/axios";
-import { getTicketInventoryAdjustment } from "./buyerStorage";
 
 const TICKET_TYPE_URL = "/TicketType";
 const EVENTS_URL = "/Events";
 
-const normalizeTicketType = (ticketType, eventId) => {
-  const rawAvailable = Number(ticketType.quantityAvailable ?? 0);
-  const adjustment = getTicketInventoryAdjustment(ticketType.id);
-  const shouldApplyLocalPurchase =
-    Number(adjustment.purchased || 0) > 0 &&
-    (adjustment.lastKnownAvailable === null || rawAvailable >= Number(adjustment.lastKnownAvailable));
-  const localPurchased = shouldApplyLocalPurchase ? Number(adjustment.purchased || 0) : 0;
-  const ticketsLeft = Math.max(0, rawAvailable - localPurchased);
-  const soldQuantity = Number(ticketType.soldQuantity ?? 0) + localPurchased;
-  const totalStock = ticketsLeft + soldQuantity;
-
-  return {
-    ...ticketType,
-    eventId: ticketType.eventId ?? eventId,
-    eventSectionId: ticketType.eventSectionId ?? "",
-    price: Number(ticketType.price ?? 0),
-    quantityAvailable: ticketsLeft,
-    ticketsLeft,
-    soldQuantity,
-    totalStock,
-  };
-};
+const normalizeTicketType = (ticketType, eventId) => ({
+  ...ticketType,
+  eventId: ticketType.eventId ?? eventId,
+  eventSectionId: ticketType.eventSectionId ?? "",
+  price: Number(ticketType.price ?? 0),
+  quantityAvailable: Number(ticketType.quantityAvailable ?? 0),
+  ticketsLeft: Number(ticketType.quantityAvailable ?? 0),
+  soldQuantity: Number(ticketType.soldQuantity ?? 0),
+  totalStock:
+    Number(ticketType.quantityAvailable ?? 0) +
+    Number(ticketType.soldQuantity ?? 0),
+});
 
 const toUtcIso = (value) => {
   if (!value) return value;
@@ -49,14 +38,24 @@ export const ticketTypeService = {
     const response = await api.get(`${TICKET_TYPE_URL}/event/${eventId}`, {
       headers: tenantSlug ? { "X-Tenant-Slug": tenantSlug } : undefined,
     });
-    return response.data.map((ticketType) => normalizeTicketType(ticketType, eventId));
+
+    return response.data.map((ticketType) =>
+      normalizeTicketType(ticketType, eventId)
+    );
   },
 
   getAvailableByEventId: async (eventId, tenantSlug) => {
-    const response = await api.get(`${TICKET_TYPE_URL}/event/${eventId}/available`, {
-      headers: tenantSlug ? { "X-Tenant-Slug": tenantSlug } : undefined,
-    });
-    return response.data.map((ticketType) => normalizeTicketType(ticketType, eventId));
+    const response = await api.get(
+      `${TICKET_TYPE_URL}/public/event/${eventId}/available`,
+      {
+        headers: tenantSlug ? { "X-Tenant-Slug": tenantSlug } : {},
+        suppressAuthRedirect: true,
+      }
+    );
+
+    return response.data.map((ticketType) =>
+      normalizeTicketType(ticketType, eventId)
+    );
   },
 
   getById: async (id) => {
@@ -66,7 +65,9 @@ export const ticketTypeService = {
 
   getAll: async () => {
     const eventsResponse = await api.get(EVENTS_URL);
-    const events = Array.isArray(eventsResponse.data) ? eventsResponse.data : eventsResponse.data?.data ?? [];
+    const events = Array.isArray(eventsResponse.data)
+      ? eventsResponse.data
+      : eventsResponse.data?.data ?? [];
 
     const results = await Promise.allSettled(
       events
@@ -81,13 +82,19 @@ export const ticketTypeService = {
   },
 
   create: async (data) => {
-    const response = await api.post(TICKET_TYPE_URL, mapCreateTicketTypeRequest(data));
+    const response = await api.post(
+      TICKET_TYPE_URL,
+      mapCreateTicketTypeRequest(data)
+    );
+
     return normalizeTicketType(response.data, data.eventId);
   },
 };
 
 export const getTicketTypes = (eventId, tenantSlug) =>
-  eventId ? ticketTypeService.getByEventId(eventId, tenantSlug) : ticketTypeService.getAll();
+  eventId
+    ? ticketTypeService.getAvailableByEventId(eventId, tenantSlug)
+    : ticketTypeService.getAll();
 
 export const getAvailableTicketTypes = (eventId, tenantSlug) =>
   ticketTypeService.getAvailableByEventId(eventId, tenantSlug);

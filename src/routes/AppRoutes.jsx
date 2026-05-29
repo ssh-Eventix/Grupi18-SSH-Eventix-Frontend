@@ -70,9 +70,9 @@ function AppRoutes() {
       <Route element={<RoleRoute allowedRoles={["Buyer"]} />}>
         <Route path="/buyer" element={<BuyerLayout />}>
           <Route index element={<HomePage />} />
-          <Route path="top-events" element={<BuyerEventsPage title="Top Events" filter={(event) => event.tag === "Top Event"} />} />
-          <Route path="weekend" element={<BuyerEventsPage title="This Weekend" filter={(event) => event.tag === "This Weekend"} />} />
-          <Route path="free-events" element={<BuyerEventsPage title="Free Events" filter={(event) => event.price === "Free"} />} />
+          <Route path="top-events" element={<BuyerEventsPage title="Top Events" filterType="top" />} />
+          <Route path="weekend" element={<BuyerEventsPage title="This Weekend" filterType="weekend" />} />
+          <Route path="free-events" element={<BuyerEventsPage title="Free Events" filterType="free" />} />
           <Route path="events/:eventId" element={<EventDetailsPage />} />
           <Route path="checkout/:eventId" element={<CheckoutPage />} />
           <Route path="payment/:eventId" element={<PaymentPage />} />

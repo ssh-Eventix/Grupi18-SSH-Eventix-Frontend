@@ -6,23 +6,15 @@ import { useAuth } from "../../auth/AuthContext";
 import { createBooking } from "../../services/bookingService";
 import { savePurchaseRecords } from "../../services/purchaseRecordsService";
 import { getTicketTypes } from "../../services/ticketTypeService";
+import { paymentMethodService } from "../../services/paymentMethodService";
+import { paymentService } from "../../services/paymentService";
+import { discountCouponService } from "../../services/discountCouponService";
 import {
   addBuyerNotification,
   readJson,
   recordTicketTypePurchase,
   saveBuyerTicket,
 } from "../../services/buyerStorage";
-
-const parseStartPrice = (price) => {
-  if (price === "Free") return 0;
-  const match = price.match(/\d+/);
-  return match ? Number(match[0]) : 20;
-};
-
-const fallbackTicketTypes = [
-  { id: "regular", name: "Regular", price: 15, quantityAvailable: 50 },
-  { id: "vip", name: "VIP", price: 35, quantityAvailable: 20 },
-];
 
 const formatCardNumber = (value) =>
   value.replace(/\D/g, "").slice(0, 16).replace(/(.{4})/g, "$1 ").trim();
@@ -58,6 +50,7 @@ function PaymentPage() {
   const [bookingError, setBookingError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(null);
+  const [couponResult, setCouponResult] = useState(null);
   const [payment, setPayment] = useState({
     email: searchParams.get("email") || user?.email || "",
     cardName: "",
@@ -65,6 +58,9 @@ function PaymentPage() {
     expiry: "",
     cvc: "",
   });
+  
+   const [paymentMethods, setPaymentMethods] = useState([]);
+
 
   const selectedTicketTypeId = searchParams.get("ticketTypeId") || "";
   const quantity = Number(searchParams.get("quantity")) || 1;
@@ -74,13 +70,20 @@ function PaymentPage() {
   }, [eventId]);
 
   useEffect(() => {
+  paymentMethodService
+    .getAll()
+    .then(setPaymentMethods)
+    .catch(console.error);
+}, []);
+
+  useEffect(() => {
     if (!event?.id) return;
     const eventTenantSlug = getEventTenantSlug(event);
 
     getTicketTypes(event.backendId || event.id, eventTenantSlug)
-      .then((types) => setTicketTypes(types.length ? types : event.isBackendEvent ? [] : fallbackTicketTypes))
-      .catch(() => setTicketTypes(event.isBackendEvent ? [] : fallbackTicketTypes));
-  }, [event]);
+  .then((types) => setTicketTypes(types))
+  .catch(() => setTicketTypes([]));
+}, [event]);
 
   if (!event) {
     return (
@@ -93,10 +96,11 @@ function PaymentPage() {
   }
 
   const selectedTicketType = ticketTypes.find((type) => type.id === selectedTicketTypeId) || ticketTypes[0];
-  const unitPrice = selectedTicketType?.price ?? parseStartPrice(event.price);
+  const unitPrice = Number(selectedTicketType?.price || 0);
   const subtotal = unitPrice * quantity;
-  const discount = couponCode.trim().toUpperCase() === "EVENTIX10" ? Math.round(subtotal * 0.1 * 100) / 100 : 0;
-  const total = Math.max(0, subtotal - discount);
+
+  const discount = couponResult?.discountAmount || 0;
+  const total = couponResult?.total ?? subtotal;
 
   const updatePayment = (name, value) => {
     setPayment((prev) => ({ ...prev, [name]: value }));
@@ -131,6 +135,23 @@ function PaymentPage() {
           tenantSlug: getEventTenantSlug(event),
           quantity,
         });
+
+        const defaultMethod =
+          paymentMethods.find((x) => x.isActive === true || x.isActive === undefined) ||
+          paymentMethods[0];
+
+        if (!defaultMethod) {
+          throw new Error("No payment methods configured. Create one in Payment Methods first.");
+        }
+
+        await paymentService.create({
+            bookingId: backendBooking.id,
+            paymentMethodId: defaultMethod.id,
+            amount: total,
+            status: 1,
+            paidAt: new Date().toISOString(),
+        });
+
       } catch (error) {
         const message =
           error?.response?.data?.message ||
@@ -243,12 +264,32 @@ function PaymentPage() {
                 setCouponCode(input.target.value);
                 setCouponMessage("");
               }}
-              placeholder="Try EVENTIX10"
+              placeholder="Enter coupon code"
               value={couponCode}
             />
             <button
               type="button"
-              onClick={() => setCouponMessage(discount > 0 ? "Coupon applied: 10% off" : "Coupon not valid")}
+              onClick={async () => {
+                    if (!couponCode.trim()) {
+                      setCouponMessage("Enter a coupon code first.");
+                      return;
+                    }
+
+                    try {
+                      const result = await discountCouponService.validate({
+                        eventId: event.backendId || event.id,
+                        code: couponCode,
+                        subtotal,
+                        tenantSlug: getEventTenantSlug(event),
+                      });
+
+                      setCouponResult(result);
+                      setCouponMessage(result.message);
+                    } catch {
+                      setCouponResult(null);
+                      setCouponMessage("Coupon could not be validated.");
+                    }
+                  }}
             >
               Apply
             </button>
