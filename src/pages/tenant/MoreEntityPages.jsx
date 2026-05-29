@@ -21,7 +21,12 @@ const date = (name, label = name) => ({ name, label, type: "datetime-local" });
 const number = (name, label = name) => ({ name, label, type: "number" });
 const checkbox = (name, label = name) => ({ name, label, type: "checkbox" });
 const area = (name, label = name) => ({ name, label, type: "textarea" });
-const select = (name, label, options) => ({ name, label, type: "select", options });
+const select = (name, label, options) => ({
+  name,
+  label,
+  type: "select",
+  options,
+});
 
 const readonlyEmptyService = {
   getAll: async () => [],
@@ -33,7 +38,9 @@ const readonlyEmptyService = {
 const auditLogsService = {
   getAll: async () => {
     const response = await api.get("/AuditLog");
-    return response.data?.items ?? response.data?.Items ?? response.data?.data ?? [];
+    return (
+      response.data?.items ?? response.data?.Items ?? response.data?.data ?? []
+    );
   },
   create: async () => null,
   update: async () => null,
@@ -66,7 +73,9 @@ export function TicketTypesPage() {
   });
 
   const selectedEventSections = useMemo(() => {
-    return eventSections.filter((section) => String(section.eventId) === String(form.eventId));
+    return eventSections.filter(
+      (section) => String(section.eventId) === String(form.eventId),
+    );
   }, [eventSections, form.eventId]);
 
   const sectionsById = useMemo(() => {
@@ -87,7 +96,7 @@ export function TicketTypesPage() {
 
         const nextEvents = Array.isArray(eventsData)
           ? eventsData
-          : eventsData?.data ?? [];
+          : (eventsData?.data ?? []);
 
         setEvents(nextEvents);
 
@@ -106,7 +115,7 @@ export function TicketTypesPage() {
             setEventSections(
               Array.isArray(sectionsData)
                 ? sectionsData
-                : sectionsData?.data ?? []
+                : (sectionsData?.data ?? []),
             );
           } catch {
             setEventSections([]);
@@ -119,7 +128,7 @@ export function TicketTypesPage() {
             setTicketTypes(
               Array.isArray(ticketTypesData)
                 ? ticketTypesData
-                : ticketTypesData?.data ?? []
+                : (ticketTypesData?.data ?? []),
             );
           } catch {
             setTicketTypes([]);
@@ -168,11 +177,11 @@ export function TicketTypesPage() {
 
       const nextSections = Array.isArray(sectionsData)
         ? sectionsData
-        : sectionsData?.data ?? [];
+        : (sectionsData?.data ?? []);
 
       const nextTicketTypes = Array.isArray(ticketTypesData)
         ? ticketTypesData
-        : ticketTypesData?.data ?? [];
+        : (ticketTypesData?.data ?? []);
 
       setEventSections(nextSections);
       setTicketTypes(nextTicketTypes);
@@ -199,11 +208,13 @@ export function TicketTypesPage() {
     }
 
     const duplicateName = ticketTypes.some(
-      (type) => type.name?.trim().toLowerCase() === normalizedName
+      (type) => type.name?.trim().toLowerCase() === normalizedName,
     );
 
     if (duplicateName) {
-      setError("A ticket type with this name already exists for the selected event.");
+      setError(
+        "A ticket type with this name already exists for the selected event.",
+      );
       return;
     }
 
@@ -266,8 +277,6 @@ export function TicketTypesPage() {
     return section.code ? `${section.name} (${section.code})` : section.name;
   };
 
-
-  
   const ticketTypeRows = useMemo(() => {
     return ticketTypes.map((type) => ({
       ...type,
@@ -301,7 +310,7 @@ export function TicketTypesPage() {
           .filter((value) => value !== undefined && value !== null)
           .join(" ")
           .toLowerCase()
-          .includes(term)
+          .includes(term),
       );
       const start = (page - 1) * pageSize;
 
@@ -310,7 +319,7 @@ export function TicketTypesPage() {
         totalPages: Math.ceil(filtered.length / pageSize) || 1,
       };
     },
-    [ticketTypeRows]
+    [ticketTypeRows],
   );
 
   const ticketTypeColumns = [
@@ -363,11 +372,13 @@ export function TicketTypesPage() {
             <div className="event-section-picker">
               {selectedEventSections.length === 0 && (
                 <p className="status-text">
-                  No event sections found for this event. First create Event Sections for this event.
+                  No event sections found for this event. First create Event
+                  Sections for this event.
                 </p>
               )}
               {selectedEventSections.map((section) => {
-                const selected = String(form.eventSectionId) === String(section.id);
+                const selected =
+                  String(form.eventSectionId) === String(section.id);
 
                 return (
                   <button
@@ -420,7 +431,9 @@ export function TicketTypesPage() {
             value={form.quantityAvailable}
             disabled={saving}
             placeholder="100"
-            onChange={(event) => updateField("quantityAvailable", event.target.value)}
+            onChange={(event) =>
+              updateField("quantityAvailable", event.target.value)
+            }
             required
           />
         </div>
@@ -431,7 +444,9 @@ export function TicketTypesPage() {
             type="datetime-local"
             value={form.saleStartDate}
             disabled={saving}
-            onChange={(event) => updateField("saleStartDate", event.target.value)}
+            onChange={(event) =>
+              updateField("saleStartDate", event.target.value)
+            }
             required
           />
         </div>
@@ -488,18 +503,31 @@ export function BookingsPage() {
 
     try {
       const result = await ordersService.getAll();
-      const rows = (Array.isArray(result) ? result : result?.data ?? [])
+      const rows = (Array.isArray(result) ? result : (result?.data ?? []))
         .map((order) => ({
           ...order,
-          buyerEmail: order.buyerEmail || order.email || order.emailedTo || order.userEmail || order.userId || "-",
+          buyerEmail:
+            order.buyerEmail ||
+            order.email ||
+            order.emailedTo ||
+            order.userEmail ||
+            order.userId ||
+            "-",
           ticketCodes:
-            order.tickets?.map((ticket) => ticket.ticketCode).filter(Boolean).join(", ") ||
+            order.tickets
+              ?.map((ticket) => ticket.ticketCode)
+              .filter(Boolean)
+              .join(", ") ||
             order.ticketCode ||
             "",
           totalText: `EUR ${Number(order.totalAmount || 0).toFixed(2)}`,
-          bookingDateText: order.bookingDate ? new Date(order.bookingDate).toLocaleString() : "",
+          bookingDateText: order.bookingDate
+            ? new Date(order.bookingDate).toLocaleString()
+            : "",
         }))
-        .sort((a, b) => new Date(b.bookingDate || 0) - new Date(a.bookingDate || 0));
+        .sort(
+          (a, b) => new Date(b.bookingDate || 0) - new Date(a.bookingDate || 0),
+        );
       const term = search.trim().toLowerCase();
       const filtered = rows.filter((order) =>
         [
@@ -515,7 +543,7 @@ export function BookingsPage() {
           .filter(Boolean)
           .join(" ")
           .toLowerCase()
-          .includes(term)
+          .includes(term),
       );
       const start = (page - 1) * pageSize;
 
@@ -557,7 +585,13 @@ export function PaymentsPage() {
       title="Payments"
       description="Payments created from buyer checkout."
       api={createCrudService("/Payment")}
-      initialForm={{ bookingId: uuid, amount: 0, paymentMethodId: uuid, transactionId: "", status: 0 }}
+      initialForm={{
+        bookingId: uuid,
+        amount: 0,
+        paymentMethodId: uuid,
+        transactionId: "",
+        status: 0,
+      }}
       fields={[
         text("bookingId", "Booking ID"),
         text("eventTitle", "Event"),
@@ -578,10 +612,23 @@ export function PaymentMethodsPage() {
       title="Payment Methods"
       description="Payment method settings from backend."
       api={createCrudService("/PaymentMethod")}
-      initialForm={{ name: "", provider: "", description: "", isActive: true }}
+      initialForm={{
+        name: "",
+        provider: 1,
+        description: "",
+        isActive: true,
+      }}
       fields={[
         text("name", "Name"),
-        text("provider", "Provider"),
+        select("provider", "Provider", [
+          { value: 1, label: "Stripe" },
+          { value: 2, label: "PayPal" },
+          { value: 3, label: "Bank Transfer" },
+          { value: 4, label: "Cash" },
+          { value: 5, label: "Credit Card" },
+          { value: 6, label: "Apple Pay" },
+          { value: 7, label: "Google Pay" },
+        ]),
         area("description", "Description"),
         checkbox("isActive", "Active"),
       ]}
@@ -595,7 +642,9 @@ export function CouponsPage() {
   useEffect(() => {
     eventsService
       .getAll()
-      .then((data) => setEvents(Array.isArray(data) ? data : data?.data ?? []))
+      .then((data) =>
+        setEvents(Array.isArray(data) ? data : (data?.data ?? [])),
+      )
       .catch(() => setEvents([]));
   }, []);
 
@@ -607,7 +656,9 @@ export function CouponsPage() {
           code: data.code?.trim().toUpperCase(),
           type: Number(data.type),
           discountValue: Number(data.discountValue),
-          validFrom: data.validFrom ? new Date(data.validFrom).toISOString() : null,
+          validFrom: data.validFrom
+            ? new Date(data.validFrom).toISOString()
+            : null,
           validTo: data.validTo ? new Date(data.validTo).toISOString() : null,
           usageLimit: data.usageLimit === "" ? null : Number(data.usageLimit),
         }),
@@ -616,12 +667,14 @@ export function CouponsPage() {
           code: data.code?.trim().toUpperCase(),
           type: Number(data.type),
           discountValue: Number(data.discountValue),
-          validFrom: data.validFrom ? new Date(data.validFrom).toISOString() : null,
+          validFrom: data.validFrom
+            ? new Date(data.validFrom).toISOString()
+            : null,
           validTo: data.validTo ? new Date(data.validTo).toISOString() : null,
           usageLimit: data.usageLimit === "" ? null : Number(data.usageLimit),
         }),
       }),
-    []
+    [],
   );
 
   const eventOptions = useMemo(
@@ -632,7 +685,7 @@ export function CouponsPage() {
         label: event.title || event.name || event.id,
       })),
     ],
-    [events]
+    [events],
   );
 
   return (
@@ -640,7 +693,15 @@ export function CouponsPage() {
       title="Discount Coupons"
       description="Create promo codes and discount rules for events."
       api={couponApi}
-      initialForm={{ eventId: "", code: "", type: 1, discountValue: 0, validFrom: "", validTo: "", usageLimit: "" }}
+      initialForm={{
+        eventId: "",
+        code: "",
+        type: 1,
+        discountValue: 0,
+        validFrom: "",
+        validTo: "",
+        usageLimit: "",
+      }}
       fields={[
         select("eventId", "Event", eventOptions),
         text("code", "Code"),
@@ -658,26 +719,31 @@ export function CouponsPage() {
           name: "eventId",
           label: "Event",
           render: (item) =>
-            events.find((event) => String(event.id) === String(item.eventId))?.title ||
-            events.find((event) => String(event.id) === String(item.eventId))?.name ||
+            events.find((event) => String(event.id) === String(item.eventId))
+              ?.title ||
+            events.find((event) => String(event.id) === String(item.eventId))
+              ?.name ||
             item.eventId,
         },
         text("code", "Code"),
         {
           name: "type",
           label: "Type",
-          render: (item) => (Number(item.type) === 2 ? "Fixed Amount" : "Percentage"),
+          render: (item) =>
+            Number(item.type) === 2 ? "Fixed Amount" : "Percentage",
         },
         number("discountValue", "Value"),
         {
           name: "validFrom",
           label: "Valid From",
-          render: (item) => (item.validFrom ? new Date(item.validFrom).toLocaleString() : ""),
+          render: (item) =>
+            item.validFrom ? new Date(item.validFrom).toLocaleString() : "",
         },
         {
           name: "validTo",
           label: "Valid To",
-          render: (item) => (item.validTo ? new Date(item.validTo).toLocaleString() : ""),
+          render: (item) =>
+            item.validTo ? new Date(item.validTo).toLocaleString() : "",
         },
         number("usageLimit", "Usage Limit"),
         number("usageCount", "Used"),
@@ -692,7 +758,14 @@ export function EventSessionsPage() {
       title="Event Sessions"
       description="Agenda blocks, workshops, talks, and multi-day event sessions."
       api={createCrudService("/EventSession")}
-      initialForm={{ eventId: uuid, speakerId: uuid, title: "", description: "", startTime: "", endTime: "" }}
+      initialForm={{
+        eventId: uuid,
+        speakerId: uuid,
+        title: "",
+        description: "",
+        startTime: "",
+        endTime: "",
+      }}
       fields={[
         text("eventId", "Event ID"),
         text("speakerId", "Speaker ID"),
@@ -711,7 +784,13 @@ export function SpeakersPage() {
       title="Speakers"
       description="Speaker profiles for conferences, panels, and sessions."
       api={createCrudService("/Speakers")}
-      initialForm={{ fullName: "", bio: "", email: "", phone: "", profileImageUrl: "" }}
+      initialForm={{
+        fullName: "",
+        bio: "",
+        email: "",
+        phone: "",
+        profileImageUrl: "",
+      }}
       fields={[
         text("fullName", "Full Name"),
         area("bio", "Bio"),
@@ -746,7 +825,9 @@ export function CheckInsPage() {
     if (!updatedTicket?.ticketCode) return;
 
     setTickets((prev) => {
-      const exists = prev.some((item) => item.ticketCode === updatedTicket.ticketCode);
+      const exists = prev.some(
+        (item) => item.ticketCode === updatedTicket.ticketCode,
+      );
 
       if (!exists) {
         return [updatedTicket, ...prev];
@@ -759,10 +840,11 @@ export function CheckInsPage() {
               ...updatedTicket,
               eventTitle: updatedTicket.eventTitle ?? item.eventTitle,
               buyerEmail: updatedTicket.buyerEmail ?? item.buyerEmail,
-              referenceNumber: updatedTicket.referenceNumber ?? item.referenceNumber,
+              referenceNumber:
+                updatedTicket.referenceNumber ?? item.referenceNumber,
               bookingId: updatedTicket.bookingId ?? item.bookingId,
             }
-          : item
+          : item,
       );
     });
   };
@@ -845,7 +927,9 @@ export function CheckInsPage() {
     return value ? new Date(value).toLocaleString() : "";
   };
 
-  const statusText = ticket ? statusLabels[ticket.status] ?? String(ticket.status) : "";
+  const statusText = ticket
+    ? (statusLabels[ticket.status] ?? String(ticket.status))
+    : "";
   const isUsed = ticket?.status === 1;
 
   const checkInTicket = async (code) => {
@@ -878,7 +962,13 @@ export function CheckInsPage() {
   const ticketRows = useMemo(() => {
     return tickets.map((item) => ({
       ...item,
-      buyerEmail: item.buyerEmail || item.email || item.emailedTo || item.userEmail || item.userId || "-",
+      buyerEmail:
+        item.buyerEmail ||
+        item.email ||
+        item.emailedTo ||
+        item.userEmail ||
+        item.userId ||
+        "-",
       statusText: statusLabels[item.status] ?? String(item.status),
       issuedAtText: formatDate(item.issuedAt),
       usedAtText: item.usedAt ? formatDate(item.usedAt) : "Not checked in",
@@ -900,7 +990,7 @@ export function CheckInsPage() {
           .filter(Boolean)
           .join(" ")
           .toLowerCase()
-          .includes(term)
+          .includes(term),
       );
       const start = (page - 1) * pageSize;
 
@@ -909,7 +999,7 @@ export function CheckInsPage() {
         totalPages: Math.ceil(filtered.length / pageSize) || 1,
       };
     },
-    [ticketRows]
+    [ticketRows],
   );
 
   const checkInColumns = [
@@ -955,7 +1045,9 @@ export function CheckInsPage() {
 
       <div className="table-panel">
         {!ticket ? (
-          <p className="status-text">Enter a ticket code to check its status.</p>
+          <p className="status-text">
+            Enter a ticket code to check its status.
+          </p>
         ) : (
           <table>
             <thead>
@@ -975,14 +1067,20 @@ export function CheckInsPage() {
                 <td>{ticket.ticketCode}</td>
                 <td>{statusText}</td>
                 <td>{formatDate(ticket.issuedAt)}</td>
-                <td>{ticket.usedAt ? formatDate(ticket.usedAt) : "Not checked in"}</td>
+                <td>
+                  {ticket.usedAt ? formatDate(ticket.usedAt) : "Not checked in"}
+                </td>
                 <td>
                   <button
                     type="button"
                     disabled={checkingIn || isUsed}
                     onClick={handleCheckIn}
                   >
-                    {isUsed ? "Checked in" : checkingIn ? "Checking in..." : "Check in"}
+                    {isUsed
+                      ? "Checked in"
+                      : checkingIn
+                        ? "Checking in..."
+                        : "Check in"}
                   </button>
                 </td>
               </tr>
@@ -1011,7 +1109,8 @@ export function CheckInsPage() {
             custom: [
               {
                 key: "check-in",
-                label: (item) => (item.status === 1 ? "Checked in" : "Check in"),
+                label: (item) =>
+                  item.status === 1 ? "Checked in" : "Check in",
                 disabled: (item) => checkingIn || item.status === 1,
                 onClick: (item) => checkInTicket(item.ticketCode),
               },
@@ -1047,7 +1146,9 @@ export function AttendeesPage() {
         ticketService.getAll(),
       ]);
 
-      setEvents(Array.isArray(eventsData) ? eventsData : eventsData?.data ?? []);
+      setEvents(
+        Array.isArray(eventsData) ? eventsData : (eventsData?.data ?? []),
+      );
       setTickets(Array.isArray(ticketsData) ? ticketsData : []);
     } catch (err) {
       setError(handleApiError(err));
@@ -1061,13 +1162,19 @@ export function AttendeesPage() {
   }, []);
 
   const eventTickets = useMemo(() => {
-    return tickets.filter((ticket) => !eventId || String(ticket.eventId) === String(eventId));
+    return tickets.filter(
+      (ticket) => !eventId || String(ticket.eventId) === String(eventId),
+    );
   }, [tickets, eventId]);
 
   const stats = useMemo(() => {
     const total = eventTickets.length;
-    const checkedIn = eventTickets.filter((ticket) => ticket.status === 1).length;
-    const cancelled = eventTickets.filter((ticket) => ticket.status === 2 || ticket.status === 3).length;
+    const checkedIn = eventTickets.filter(
+      (ticket) => ticket.status === 1,
+    ).length;
+    const cancelled = eventTickets.filter(
+      (ticket) => ticket.status === 2 || ticket.status === 3,
+    ).length;
     const pending = total - checkedIn - cancelled;
     const rate = total > 0 ? Math.round((checkedIn / total) * 100) : 0;
 
@@ -1101,7 +1208,7 @@ export function AttendeesPage() {
           .filter(Boolean)
           .join(" ")
           .toLowerCase()
-          .includes(term)
+          .includes(term),
       );
 
       const start = (page - 1) * pageSize;
@@ -1111,7 +1218,7 @@ export function AttendeesPage() {
         totalPages: Math.ceil(filtered.length / pageSize) || 1,
       };
     },
-    [attendeeRows]
+    [attendeeRows],
   );
 
   const attendeeColumns = [
@@ -1138,7 +1245,10 @@ export function AttendeesPage() {
       <div className="dynamic-form attendees-filter">
         <div className="form-field">
           <label>Event</label>
-          <select value={eventId} onChange={(event) => setEventId(event.target.value)}>
+          <select
+            value={eventId}
+            onChange={(event) => setEventId(event.target.value)}
+          >
             <option value="">All events</option>
             {events.map((event) => (
               <option key={event.id} value={event.id}>
@@ -1190,7 +1300,13 @@ export function NotificationsPage() {
       title="Notifications"
       description="Send confirmations, reminders, and event updates to users."
       api={createCrudService("/Notification", { createOnly: true })}
-      initialForm={{ userId: uuid, eventId: uuid, type: 0, title: "", message: "" }}
+      initialForm={{
+        userId: uuid,
+        eventId: uuid,
+        type: 0,
+        title: "",
+        message: "",
+      }}
       fields={[
         text("userId", "User ID"),
         text("eventId", "Event ID"),
@@ -1226,9 +1342,11 @@ export function ReviewsPage() {
         usersService.getAll(),
       ]);
 
-      setEvents(Array.isArray(eventsData) ? eventsData : eventsData?.data ?? []);
+      setEvents(
+        Array.isArray(eventsData) ? eventsData : (eventsData?.data ?? []),
+      );
       setReviews(Array.isArray(reviewsData) ? reviewsData : []);
-      setUsers(Array.isArray(usersData) ? usersData : usersData?.data ?? []);
+      setUsers(Array.isArray(usersData) ? usersData : (usersData?.data ?? []));
     } catch (err) {
       setError(handleApiError(err));
     } finally {
@@ -1249,17 +1367,24 @@ export function ReviewsPage() {
 
   const userNameById = useMemo(() => {
     return users.reduce((map, user) => {
-      const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
+      const fullName = [user.firstName, user.lastName]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
       map[String(user.id)] = fullName || user.email || user.id;
       return map;
     }, {});
   }, [users]);
 
   const visibleReviews = useMemo(() => {
-    return reviews.filter((review) => !eventId || String(review.eventId) === String(eventId));
+    return reviews.filter(
+      (review) => !eventId || String(review.eventId) === String(eventId),
+    );
   }, [reviews, eventId]);
 
-  const selectedEventName = eventId ? eventNameById[String(eventId)] || "Selected event" : "";
+  const selectedEventName = eventId
+    ? eventNameById[String(eventId)] || "Selected event"
+    : "";
 
   const generateReviewSummary = async () => {
     if (!eventId) {
@@ -1300,10 +1425,17 @@ export function ReviewsPage() {
   const stats = useMemo(() => {
     const total = visibleReviews.length;
     const average = total
-      ? visibleReviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) / total
+      ? visibleReviews.reduce(
+          (sum, review) => sum + Number(review.rating || 0),
+          0,
+        ) / total
       : 0;
-    const fiveStar = visibleReviews.filter((review) => Number(review.rating) === 5).length;
-    const lowRating = visibleReviews.filter((review) => Number(review.rating) <= 2).length;
+    const fiveStar = visibleReviews.filter(
+      (review) => Number(review.rating) === 5,
+    ).length;
+    const lowRating = visibleReviews.filter(
+      (review) => Number(review.rating) <= 2,
+    ).length;
 
     return {
       total,
@@ -1319,7 +1451,9 @@ export function ReviewsPage() {
       eventTitle: eventNameById[String(review.eventId)] || review.eventId,
       userName: userNameById[String(review.userId)] || review.userId,
       ratingText: `${review.rating}/5`,
-      createdAtText: review.createdAt ? new Date(review.createdAt).toLocaleString() : "",
+      createdAtText: review.createdAt
+        ? new Date(review.createdAt).toLocaleString()
+        : "",
       commentText: review.comment || "",
     }));
   }, [visibleReviews, eventNameById, userNameById]);
@@ -1338,7 +1472,7 @@ export function ReviewsPage() {
           .filter(Boolean)
           .join(" ")
           .toLowerCase()
-          .includes(term)
+          .includes(term),
       );
       const start = (page - 1) * pageSize;
 
@@ -1347,7 +1481,7 @@ export function ReviewsPage() {
         totalPages: Math.ceil(filtered.length / pageSize) || 1,
       };
     },
-    [rows]
+    [rows],
   );
 
   const reviewSummaryLines = useMemo(() => {
@@ -1380,7 +1514,10 @@ export function ReviewsPage() {
       <div className="dynamic-form attendees-filter">
         <div className="form-field">
           <label>Event</label>
-          <select value={eventId} onChange={(event) => handleEventChange(event.target.value)}>
+          <select
+            value={eventId}
+            onChange={(event) => handleEventChange(event.target.value)}
+          >
             <option value="">All events</option>
             {events.map((event) => (
               <option key={event.id} value={event.id}>
@@ -1407,7 +1544,10 @@ export function ReviewsPage() {
           <div className="ai-summary-header">
             <div>
               <span>AI Insight</span>
-              <h2>Review Summary{selectedEventName ? ` - ${selectedEventName}` : ""}</h2>
+              <h2>
+                Review Summary
+                {selectedEventName ? ` - ${selectedEventName}` : ""}
+              </h2>
             </div>
             <small>Max 1000 words</small>
           </div>
@@ -1464,7 +1604,13 @@ export function UsersPage() {
       title="Users"
       description="Tenant users and attendees."
       api={createCrudService("/User")}
-      initialForm={{ firstName: "", lastName: "", email: "", password: "", isActive: true }}
+      initialForm={{
+        firstName: "",
+        lastName: "",
+        email: "",
+        password: "",
+        isActive: true,
+      }}
       fields={[
         text("firstName", "First Name"),
         text("lastName", "Last Name"),
@@ -1514,7 +1660,14 @@ export function ArchiveRecordsPage() {
       title="Archive Records"
       description="Archived entity snapshots and retention metadata."
       api={createCrudService("/ArchiveRecords", { createOnly: true })}
-      initialForm={{ tenantId: uuid, entityName: "", entityId: uuid, data: "", archivedByUserId: uuid, archiveYear: new Date().getFullYear() }}
+      initialForm={{
+        tenantId: uuid,
+        entityName: "",
+        entityId: uuid,
+        data: "",
+        archivedByUserId: uuid,
+        archiveYear: new Date().getFullYear(),
+      }}
       fields={[
         text("tenantId", "Tenant ID"),
         text("entityName", "Entity"),
@@ -1553,7 +1706,14 @@ export function AIRequestsPage() {
       description="Track AI prompts, responses, token usage, and status."
       readonly
       api={readonlyEmptyService}
-      initialForm={{ userId: uuid, prompt: "", responseSummary: "", requestType: "", tokensUsed: 0, status: "" }}
+      initialForm={{
+        userId: uuid,
+        prompt: "",
+        responseSummary: "",
+        requestType: "",
+        tokensUsed: 0,
+        status: "",
+      }}
       fields={[
         text("userId", "User ID"),
         area("prompt", "Prompt"),
@@ -1564,6 +1724,4 @@ export function AIRequestsPage() {
       ]}
     />
   );
-  
 }
-
