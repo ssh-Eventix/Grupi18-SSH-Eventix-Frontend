@@ -52,7 +52,9 @@ export const bookingService = {
   },
 
   create: async (data) => {
-    const response = await api.post(BOOKING_URL, mapCreateBookingRequest(data));
+    const response = await api.post(BOOKING_URL, mapCreateBookingRequest(data), {
+      headers: data.tenantSlug ? { "X-Tenant-Slug": data.tenantSlug } : undefined,
+    });
     return normalizeBooking(response.data);
   },
 

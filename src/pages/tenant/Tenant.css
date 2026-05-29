@@ -30,3 +30,19 @@
 .form-field.full {
   grid-column: 1 / -1;
 }
+
+.form-alert.success {
+  background: #e6f7ed;
+  color: #137333;
+  border: 1px solid #b7e4c7;
+}
+
+.readonly-info {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #d6dbe7;
+  border-radius: 10px;
+  background: #f5f7fb;
+  color: #334155;
+  font-size: 14px;
+}

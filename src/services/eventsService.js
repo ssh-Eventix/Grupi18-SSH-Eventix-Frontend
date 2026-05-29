@@ -28,6 +28,8 @@ const normalizeEventPayload = (data) => {
   const eventCategoryId = data.eventCategoryId?.trim();
   const startUtc = data.startUtc ? toUtcIso(data.startUtc) : "";
   const endUtc = data.endUtc ? toUtcIso(data.endUtc) : "";
+  const status = Number(data.status || 1);
+  const visibility = Number(data.visibility || 2);
 
   if (!venueId) return validationError("Select a venue.");
   if (!eventCategoryId) return validationError("Select a category.");
@@ -47,13 +49,13 @@ const normalizeEventPayload = (data) => {
     organizerName: data.organizerName?.trim() || "",
     startUtc,
     endUtc,
-    status: Number(data.status ?? 0),
-    visibility: Number(data.visibility ?? 0),
+    status,
+    visibility,
     bannerImageUrl: data.bannerImageUrl?.trim() || "",
     maxTicketsPerOrder: Number(data.maxTicketsPerOrder || 10),
     minTicketsPerOrder: Number(data.minTicketsPerOrder || 1),
     isFree: Boolean(data.isFree),
-    isPublished: Boolean(data.isPublished),
+    isPublished: status === 2 ? true : Boolean(data.isPublished),
     currency: data.currency?.trim() || "EUR",
   };
 };

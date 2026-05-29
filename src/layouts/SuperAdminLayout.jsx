@@ -19,7 +19,7 @@ const links = [
   { path: "/superadmin/tenant-admins", label: "Tenant Admins", icon: FaUsers },
   { path: "/superadmin/impersonate", label: "Impersonate", icon: FaUserSecret },
   { path: "/superadmin/venues", label: "Venues", icon: FaMapMarkedAlt },
-  { path: "/superadmin/notifications", label: "Notifications", icon: FaBell },
+  { path: "/superadmin/audit-logs", label: "Audit Logs", icon: FaBell },
 ];
 
 export default function SuperAdminLayout() {

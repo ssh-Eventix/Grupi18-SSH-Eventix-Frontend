@@ -24,6 +24,15 @@ const normalizeEmail = (email) => {
   return email || "";
 };
 
+const getEventTenantSlug = (event) => {
+  if (event?.tenantSlug) return event.tenantSlug;
+  if (event?.schemaName?.startsWith("tenant_")) {
+    return event.schemaName.replace(/^tenant_/, "").replace(/_events$/, "");
+  }
+
+  return "";
+};
+
 function CheckoutPage() {
   const { eventId } = useParams();
   const navigate = useNavigate();
@@ -32,6 +41,7 @@ function CheckoutPage() {
   const [event, setEvent] = useState(null);
   const [ticketTypes, setTicketTypes] = useState([]);
   const [selectedTicketTypeId, setSelectedTicketTypeId] = useState("");
+  const [ticketTypeError, setTicketTypeError] = useState("");
   const [quantity, setQuantity] = useState(Number(searchParams.get("quantity")) || 1);
   const [email, setEmail] = useState(normalizeEmail(user?.email));
 
@@ -41,16 +51,25 @@ function CheckoutPage() {
 
   useEffect(() => {
     if (!event?.id) return;
+    const eventTenantSlug = getEventTenantSlug(event);
+    setTicketTypeError("");
 
-    getTicketTypes(event.backendId || event.id)
+    getTicketTypes(event.backendId || event.id, eventTenantSlug)
       .then((types) => {
-        const nextTypes = types.length ? types : fallbackTicketTypes;
+        const nextTypes = types.length ? types : event.isBackendEvent ? [] : fallbackTicketTypes;
         setTicketTypes(nextTypes);
         setSelectedTicketTypeId(searchParams.get("ticketTypeId") || nextTypes[0]?.id || "");
+        if (!nextTypes.length && event.isBackendEvent) {
+          setTicketTypeError("No active ticket types were found for this event.");
+        }
       })
       .catch(() => {
-        setTicketTypes(fallbackTicketTypes);
-        setSelectedTicketTypeId(searchParams.get("ticketTypeId") || fallbackTicketTypes[0].id);
+        const nextTypes = event.isBackendEvent ? [] : fallbackTicketTypes;
+        setTicketTypes(nextTypes);
+        setSelectedTicketTypeId(searchParams.get("ticketTypeId") || nextTypes[0]?.id || "");
+        if (event.isBackendEvent) {
+          setTicketTypeError("Ticket types could not be loaded for this event.");
+        }
       });
   }, [event, searchParams]);
 
@@ -71,6 +90,10 @@ function CheckoutPage() {
 
   const goToPayment = (submitEvent) => {
     submitEvent.preventDefault();
+    if (!selectedTicketTypeId) {
+      setTicketTypeError("Please choose a valid ticket type before payment.");
+      return;
+    }
 
     const params = new URLSearchParams({
       ticketTypeId: selectedTicketTypeId,
@@ -105,6 +128,7 @@ function CheckoutPage() {
             </select>
           </label>
         )}
+        {ticketTypeError && <div className="form-alert">{ticketTypeError}</div>}
 
         <div className="quantity-row">
           <span>Tickets</span>
@@ -135,7 +159,7 @@ function CheckoutPage() {
           <strong>{subtotal === 0 ? "Free" : `EUR ${subtotal}`}</strong>
         </div>
 
-        <button className="primary-button" type="submit">
+        <button className="primary-button" disabled={!selectedTicketTypeId} type="submit">
           Go to payment
         </button>
       </form>

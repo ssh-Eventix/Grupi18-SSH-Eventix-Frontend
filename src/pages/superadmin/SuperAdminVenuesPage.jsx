@@ -278,6 +278,7 @@ export default function SuperAdminVenuesPage() {
             <label>Name</label>
             <input
             className="superadmin-input"
+            style={styles.inputFull}
             name="name"
             value={venueForm.name}
             onChange={handleVenueChange}
@@ -290,6 +291,7 @@ export default function SuperAdminVenuesPage() {
             <label>Code</label>
             <input
             className="superadmin-input"
+            style={styles.inputFull}
             name="code"
             value={venueForm.code}
             onChange={handleVenueChange}
@@ -302,6 +304,7 @@ export default function SuperAdminVenuesPage() {
             <label>Address</label>
             <input
             className="superadmin-input"
+            style={styles.inputFull}
             name="addressLine1"
             value={venueForm.addressLine1}
             onChange={handleVenueChange}
@@ -314,6 +317,7 @@ export default function SuperAdminVenuesPage() {
             <label>City</label>
             <input
             className="superadmin-input"
+            style={styles.inputFull}
             name="city"
             value={venueForm.city}
             onChange={handleVenueChange}
@@ -326,6 +330,7 @@ export default function SuperAdminVenuesPage() {
             <label>Country</label>
             <input
             className="superadmin-input"
+            style={styles.inputFull}
             name="country"
             value={venueForm.country}
             onChange={handleVenueChange}
@@ -338,6 +343,7 @@ export default function SuperAdminVenuesPage() {
             <label>Total capacity</label>
             <input
             className="superadmin-input"
+            style={styles.inputFull}
             name="totalCapacity"
             type="number"
             min="0"
@@ -631,9 +637,13 @@ const styles = {
   },
   grid: {
     display: "grid",
-    gridTemplateColumns: "360px 1fr",
+    gridTemplateColumns: "minmax(480px, 560px) 1fr",
     gap: "20px",
     alignItems: "start",
+  },
+  inputFull: {
+  width: "100%",
+  boxSizing: "border-box",
   },
   card: {
     background: "#fff",

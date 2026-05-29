@@ -8,6 +8,11 @@ export const eventSectionsService = {
     return response.data;
   },
 
+  getByEventId: async (eventId) => {
+    const response = await api.get(`${URL}/event/${eventId}`);
+    return response.data;
+  },
+
   getById: async (id) => {
     const response = await api.get(`${URL}/${id}`);
     return response.data;

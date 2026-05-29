@@ -54,7 +54,7 @@ import {
 import VenueSectionsPage from "../pages/tenant/VenueSectionsPage";
 import VenuesPage from "../pages/tenant/VenuesPage";
 import TenantAdminsPage from "../pages/superadmin/TenantAdminsPage";
-import SuperAdminNotificationsPage from "../pages/superadmin/SuperAdminNotificationsPage";
+import SuperAdminAuditLogsPage from "../pages/superadmin/SuperAdminAuditLogsPage";
 import SuperAdminVenuesPage from "../pages/superadmin/SuperAdminVenuesPage";
 
 const StartRedirect = () => {
@@ -116,7 +116,7 @@ function AppRoutes() {
           <Route path="tenant-domains" element={<TenantEmailDomainsPage />} />
           <Route path="tenant-admins" element={<TenantAdminsPage />} />
           <Route path="impersonate" element={<ImpersonatePage />} />
-          <Route path="/superadmin/notifications" element={<SuperAdminNotificationsPage />} />
+          <Route path="/superadmin/audit-logs" element={<SuperAdminAuditLogsPage />} />
           <Route path="/superadmin/venues" element={<SuperAdminVenuesPage />} />
         </Route>
       </Route>
