@@ -143,8 +143,9 @@ export function TicketsPage() {
               {ticket.quantity && <small>Quantity: {ticket.quantity}</small>}
               {ticket.referenceNumber && <small>Booking: {ticket.referenceNumber}</small>}
               {ticket.backendSynced && <small>Saved in backend</small>}
-              {ticket.emailedTo && <small>Ticket emailed to {ticket.emailedTo}</small>}
-              {!ticket.emailedTo && ticket.email && <small>Confirmation sent to {ticket.email}</small>}
+              {(ticket.buyerEmail || ticket.emailedTo || ticket.email) && (
+                <small>Ticket emailed to {ticket.buyerEmail || ticket.emailedTo || ticket.email}</small>
+              )}
             </div>
             <button type="button" onClick={() => setSelectedTicket(ticket)}>
               <FaQrcode /> View QR

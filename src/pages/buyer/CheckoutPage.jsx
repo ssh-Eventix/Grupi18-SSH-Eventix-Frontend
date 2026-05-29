@@ -1,15 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { FaMinus, FaPlus, FaTicketAlt } from "react-icons/fa";
+import { FaMinus, FaPlus, FaTicketAlt, FaTrash } from "react-icons/fa";
 import { eventsApi } from "../../api/eventsApi";
 import { useAuth } from "../../auth/AuthContext";
 import { getTicketTypes } from "../../services/ticketTypeService";
-
-const parseStartPrice = (price) => {
-  if (price === "Free") return 0;
-  const match = price.match(/\d+/);
-  return match ? Number(match[0]) : 20;
-};
 
 const normalizeEmail = (email) => {
   if (Array.isArray(email)) {
@@ -28,6 +22,29 @@ const getEventTenantSlug = (event) => {
   return "";
 };
 
+const encodeItems = (items) => JSON.stringify(items);
+
+const parseCartItems = (searchParams) => {
+  const itemsParam = searchParams.get("items");
+
+  if (!itemsParam) return [];
+
+  try {
+    const parsed = JSON.parse(itemsParam);
+
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .map((item) => ({
+        ticketTypeId: item.ticketTypeId,
+        quantity: Number(item.quantity) || 0,
+      }))
+      .filter((item) => item.ticketTypeId && item.quantity > 0);
+  } catch {
+    return [];
+  }
+};
+
 function CheckoutPage() {
   const { eventId } = useParams();
   const navigate = useNavigate();
@@ -35,9 +52,8 @@ function CheckoutPage() {
   const { user } = useAuth();
   const [event, setEvent] = useState(null);
   const [ticketTypes, setTicketTypes] = useState([]);
-  const [selectedTicketTypeId, setSelectedTicketTypeId] = useState("");
   const [ticketTypeError, setTicketTypeError] = useState("");
-  const [quantity, setQuantity] = useState(Number(searchParams.get("quantity")) || 1);
+  const [cartItems, setCartItems] = useState([]);
   const [email, setEmail] = useState(normalizeEmail(user?.email));
 
   useEffect(() => {
@@ -46,23 +62,132 @@ function CheckoutPage() {
 
   useEffect(() => {
     if (!event?.id) return;
+
     const eventTenantSlug = getEventTenantSlug(event);
     setTicketTypeError("");
 
     getTicketTypes(event.backendId || event.id, eventTenantSlug)
       .then((types) => {
         setTicketTypes(types);
-        setSelectedTicketTypeId(searchParams.get("ticketTypeId") || types[0]?.id || "");
+
         if (!types.length) {
           setTicketTypeError("No active ticket types were found for this event.");
+          return;
         }
+
+        const queryItems = parseCartItems(searchParams);
+        const typeById = types.reduce((map, type) => {
+          map[String(type.id)] = type;
+          return map;
+        }, {});
+        const normalizedQueryItems = queryItems
+          .filter((item) => typeById[String(item.ticketTypeId)])
+          .map((item) => {
+            const type = typeById[String(item.ticketTypeId)];
+
+            return {
+              ticketTypeId: item.ticketTypeId,
+              quantity: Math.min(item.quantity, Number(type.quantityAvailable || item.quantity)),
+            };
+          });
+
+        if (normalizedQueryItems.length) {
+          setCartItems(normalizedQueryItems);
+          return;
+        }
+
+        const queryTicketTypeId = searchParams.get("ticketTypeId") || types[0]?.id;
+        const queryQuantity = Number(searchParams.get("quantity")) || 1;
+        const selectedType = types.find((type) => type.id === queryTicketTypeId) || types[0];
+
+        setCartItems([
+          {
+            ticketTypeId: selectedType.id,
+            quantity: Math.min(queryQuantity, Number(selectedType.quantityAvailable || queryQuantity)),
+          },
+        ]);
       })
       .catch(() => {
         setTicketTypes([]);
-        setSelectedTicketTypeId("");
+        setCartItems([]);
         setTicketTypeError("Ticket types could not be loaded for this event.");
       });
   }, [event, searchParams]);
+
+  const ticketTypeById = useMemo(() => {
+    return ticketTypes.reduce((map, type) => {
+      map[String(type.id)] = type;
+      return map;
+    }, {});
+  }, [ticketTypes]);
+
+  const subtotal = useMemo(() => {
+    return cartItems.reduce((sum, item) => {
+      const type = ticketTypeById[String(item.ticketTypeId)];
+      return sum + Number(type?.price || 0) * Number(item.quantity || 0);
+    }, 0);
+  }, [cartItems, ticketTypeById]);
+
+  const totalQuantity = useMemo(() => {
+    return cartItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+  }, [cartItems]);
+
+  const updateQuantity = (ticketTypeId, nextQuantity) => {
+    const type = ticketTypeById[String(ticketTypeId)];
+    const maxQuantity = Math.max(1, Number(type?.quantityAvailable || 1));
+
+    setCartItems((items) =>
+      items.map((item) =>
+        item.ticketTypeId === ticketTypeId
+          ? { ...item, quantity: Math.min(Math.max(1, nextQuantity), maxQuantity) }
+          : item
+      )
+    );
+  };
+
+  const addTicketType = (ticketTypeId) => {
+    const type = ticketTypeById[String(ticketTypeId)];
+    if (!type) return;
+
+    setCartItems((items) => {
+      const existing = items.find((item) => item.ticketTypeId === ticketTypeId);
+
+      if (existing) {
+        return items.map((item) =>
+          item.ticketTypeId === ticketTypeId
+            ? {
+                ...item,
+                quantity: Math.min(Number(item.quantity || 0) + 1, Number(type.quantityAvailable || 1)),
+              }
+            : item
+        );
+      }
+
+      return [...items, { ticketTypeId, quantity: 1 }];
+    });
+  };
+
+  const removeTicketType = (ticketTypeId) => {
+    setCartItems((items) => items.filter((item) => item.ticketTypeId !== ticketTypeId));
+  };
+
+  const goToPayment = (submitEvent) => {
+    submitEvent.preventDefault();
+
+    const validItems = cartItems.filter((item) => item.ticketTypeId && Number(item.quantity) > 0);
+
+    if (!validItems.length) {
+      setTicketTypeError("Choose at least one ticket before payment.");
+      return;
+    }
+
+    const params = new URLSearchParams({
+      items: encodeItems(validItems),
+      email: email.trim(),
+    });
+
+    navigate(`/buyer/payment/${event.id}?${params.toString()}`);
+  };
 
   if (!event) {
     return (
@@ -73,27 +198,6 @@ function CheckoutPage() {
       </section>
     );
   }
-
-  const selectedTicketType = ticketTypes.find((type) => type.id === selectedTicketTypeId);
-  const unitPrice = selectedTicketType?.price ?? parseStartPrice(event.price);
-  const subtotal = unitPrice * quantity;
-  const maxQuantity = Math.max(1, Number(selectedTicketType?.quantityAvailable || 25));
-
-  const goToPayment = (submitEvent) => {
-    submitEvent.preventDefault();
-    if (!selectedTicketTypeId) {
-      setTicketTypeError("Please choose a valid ticket type before payment.");
-      return;
-    }
-
-    const params = new URLSearchParams({
-      ticketTypeId: selectedTicketTypeId,
-      quantity: String(quantity),
-      email: email.trim(),
-    });
-
-    navigate(`/buyer/payment/${event.id}?${params.toString()}`);
-  };
 
   return (
     <section className="buyer-page checkout-page">
@@ -107,30 +211,60 @@ function CheckoutPage() {
           </div>
         </div>
 
-        {ticketTypes.length > 0 && (
-          <label className="ticket-type-picker">
-            Ticket type
-            <select value={selectedTicketTypeId} onChange={(input) => setSelectedTicketTypeId(input.target.value)}>
-              {ticketTypes.map((type) => (
-                <option key={type.id} value={type.id}>
-                  {type.name} - {type.price === 0 ? "Free" : `EUR ${type.price}`} ({type.quantityAvailable} left)
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
         {ticketTypeError && <div className="form-alert">{ticketTypeError}</div>}
 
-        <div className="quantity-row">
-          <span>Tickets</span>
-          <div>
-            <button type="button" onClick={() => setQuantity((value) => Math.max(1, value - 1))}>
-              <FaMinus />
-            </button>
-            <strong>{quantity}</strong>
-            <button type="button" onClick={() => setQuantity((value) => Math.min(maxQuantity, value + 1))}>
-              <FaPlus />
-            </button>
+        <div className="ticket-type-picker">
+          <span>Available ticket types</span>
+          <div className="ticket-option-list">
+            {ticketTypes.map((type) => (
+              <button
+                key={type.id}
+                type="button"
+                className="ticket-option-button"
+                disabled={Number(type.quantityAvailable || 0) <= 0}
+                onClick={() => addTicketType(type.id)}
+              >
+                <span>{type.name}</span>
+                <strong>{Number(type.price || 0) === 0 ? "Free" : `EUR ${type.price}`}</strong>
+                <small>{type.quantityAvailable} left</small>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="ticket-type-picker">
+          <span>Selected tickets</span>
+          <div className="checkout-cart-list">
+            {cartItems.length === 0 ? (
+              <small>No tickets selected.</small>
+            ) : (
+              cartItems.map((item) => {
+                const type = ticketTypeById[String(item.ticketTypeId)];
+                const lineTotal = Number(type?.price || 0) * Number(item.quantity || 0);
+
+                return (
+                  <div className="checkout-cart-item" key={item.ticketTypeId}>
+                    <div>
+                      <strong>{type?.name || "Ticket"}</strong>
+                      <small>{Number(type?.price || 0) === 0 ? "Free" : `EUR ${type?.price}`} each</small>
+                    </div>
+                    <div className="quantity-row compact">
+                      <button type="button" onClick={() => updateQuantity(item.ticketTypeId, item.quantity - 1)}>
+                        <FaMinus />
+                      </button>
+                      <strong>{item.quantity}</strong>
+                      <button type="button" onClick={() => updateQuantity(item.ticketTypeId, item.quantity + 1)}>
+                        <FaPlus />
+                      </button>
+                    </div>
+                    <strong>{lineTotal === 0 ? "Free" : `EUR ${lineTotal}`}</strong>
+                    <button type="button" className="icon-button danger" onClick={() => removeTicketType(item.ticketTypeId)}>
+                      <FaTrash />
+                    </button>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 
@@ -146,11 +280,11 @@ function CheckoutPage() {
         </label>
 
         <div className="checkout-total">
-          <span>Subtotal</span>
+          <span>Subtotal ({totalQuantity} tickets)</span>
           <strong>{subtotal === 0 ? "Free" : `EUR ${subtotal}`}</strong>
         </div>
 
-        <button className="primary-button" disabled={!selectedTicketTypeId} type="submit">
+        <button className="primary-button" disabled={!cartItems.length} type="submit">
           Go to payment
         </button>
       </form>
@@ -158,7 +292,7 @@ function CheckoutPage() {
       <aside className="panel checkout-panel">
         <FaTicketAlt />
         <h2>Ticket details first</h2>
-        <p>Choose ticket type, quantity, and confirmation email. Payment opens on the next page.</p>
+        <p>Choose ticket types, quantities, and confirmation email. Payment opens on the next page.</p>
       </aside>
     </section>
   );
