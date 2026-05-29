@@ -5,6 +5,21 @@ const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+const getStoredTenantSlug = () => {
+  const directSlug = localStorage.getItem("tenantSlug");
+
+  if (directSlug) {
+    return directSlug;
+  }
+
+  try {
+    const user = JSON.parse(localStorage.getItem("user") || "null");
+    return user?.tenantSlug || user?.tenant?.slug || "";
+  } catch {
+    return "";
+  }
+};
+
 api.interceptors.request.use((config) => {
   const url = config.url || "";
   
@@ -35,7 +50,7 @@ if (url.includes("/Events/public")) {
   }
 
   const token = localStorage.getItem("token");
-  const tenantSlug = config.headers["X-Tenant-Slug"] || localStorage.getItem("tenantSlug");
+  const tenantSlug = config.headers["X-Tenant-Slug"] || getStoredTenantSlug();
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;

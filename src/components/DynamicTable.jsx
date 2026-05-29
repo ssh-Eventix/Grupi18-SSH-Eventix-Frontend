@@ -21,11 +21,11 @@ export default function DynamicTable({
   const customActions = actions.custom ?? [];
   const hasAnyActions = hasActions || customActions.length > 0;
 
-  const loadData = useCallback(async (searchValue = search) => {
+  const loadData = useCallback(async (searchValue = search, pageToLoad = page) => {
     setLoading(true);
 
     try {
-      const res = await fetchData(page, pageSize, searchValue);
+      const res = await fetchData(pageToLoad, pageSize, searchValue);
 
       setData(res.data);
       setTotalPages(res.totalPages || 1);
@@ -40,12 +40,18 @@ export default function DynamicTable({
 
   useEffect(() => {
     loadData();
-  }, [loadData, refreshKey]);
+  }, [loadData]);
+
+  useEffect(() => {
+    setPage(1);
+    setSearch("");
+    loadData("", 1);
+  }, [refreshKey]);
 
   const handleSearch = (e) => {
     e.preventDefault();
     setPage(1);
-    loadData(search);
+    loadData(search, 1);
   };
 
   return (

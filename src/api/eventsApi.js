@@ -1,5 +1,4 @@
 import api from "./axios";
-import { buyerEvents } from "../pages/buyer/buyerData";
 
 const formatDate = (value) => (value ? new Date(value).toLocaleDateString() : "Date TBA");
 
@@ -9,6 +8,24 @@ const formatTime = (value) =>
 const isActiveEvent = (event) => {
   if (!event.endUtc) return true;
   return new Date(event.endUtc).getTime() > Date.now();
+};
+
+const cleanDescription = (value) => {
+  const text = String(value || "").trim();
+
+  if (!text) return "Event details will be published soon.";
+
+  return text
+    .split(/\r?\n/)
+    .map((line) =>
+      line
+        .replace(/^\s*#{1,6}\s*/, "")
+        .replace(/^\s*(?:[-*•]|\d+\.)\s+/, "")
+        .replace(/[*_`]/g, "")
+        .trim()
+    )
+    .filter(Boolean)
+    .join(" ");
 };
 
 const normalizeBackendEvent = (event) => {
@@ -29,12 +46,12 @@ const normalizeBackendEvent = (event) => {
     venue: event.venueName || event.venue || "Venue TBA",
     price: event.isFree ? "Free" : `${event.currency || "EUR"} tickets available`,
     tag: event.isPublished ? "Top Event" : "Upcoming",
-    description: event.description || "Event details will be published soon.",
+    description: cleanDescription(event.description),
     organizerName: event.organizerName || "Eventix organizer",
     speakerName: event.speakerName || event.mainSpeakerName || "",
     tenantSlug: event.tenantSlug || event.TenantSlug || "",
     schemaName: event.schemaName || event.SchemaName || "",
-    image: event.bannerImageUrl || buyerEvents[0].image,
+    image: event.bannerImageUrl || "",
   };
 };
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FaEnvelope, FaRedo, FaTrash } from "react-icons/fa";
+import DynamicTable from "../../components/DynamicTable";
 import { tenantEmailDomainsService } from "../../services/tenantEmailDomainsService";
 import { tenantsService } from "../../services/tenantsService";
 import { handleApiError } from "../../utils/apiErrorHandler";
@@ -26,7 +27,7 @@ export default function TenantEmailDomainsPage() {
   const [domains, setDomains] = useState([]);
   const [form, setForm] = useState(initialForm);
   const [editingId, setEditingId] = useState(null);
-  const [query, setQuery] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -64,16 +65,49 @@ export default function TenantEmailDomainsPage() {
     [tenants, form.tenantId]
   );
 
-  const filteredDomains = useMemo(() => {
-    const text = query.trim().toLowerCase();
-    if (!text) return domains;
+  const domainColumns = useMemo(
+    () => [
+      {
+        key: "tenantId",
+        label: "Tenant",
+        render: (domain) => tenantNameById[domain.tenantId] || "Unknown tenant",
+      },
+      {
+        key: "domain",
+        label: "Domain",
+        render: (domain) => <strong>{domain.domain}</strong>,
+      },
+      {
+        key: "defaultRoleName",
+        label: "Role",
+        render: (domain) => <span className="badge info">{domain.defaultRoleName}</span>,
+      },
+      {
+        key: "autoApprove",
+        label: "Auto approve",
+        render: (domain) => (domain.autoApprove ? "Yes" : "No"),
+      },
+    ],
+    [tenantNameById]
+  );
 
-    return domains.filter((domain) =>
-      `${domain.domain || ""} ${domain.defaultRoleName || ""} ${tenantNameById[domain.tenantId] || ""}`
-        .toLowerCase()
-        .includes(text)
-    );
-  }, [domains, query, tenantNameById]);
+  const fetchDomainRows = useCallback(
+    async (page, pageSize, search) => {
+      const text = search.trim().toLowerCase();
+      const filtered = domains.filter((domain) =>
+        `${domain.domain || ""} ${domain.defaultRoleName || ""} ${tenantNameById[domain.tenantId] || ""}`
+          .toLowerCase()
+          .includes(text)
+      );
+      const start = (page - 1) * pageSize;
+
+      return {
+        data: filtered.slice(start, start + pageSize),
+        totalPages: Math.max(1, Math.ceil(filtered.length / pageSize)),
+      };
+    },
+    [domains, tenantNameById]
+  );
 
   const updateField = (name, value) => {
     setForm((current) => ({ ...current, [name]: value }));
@@ -108,6 +142,7 @@ export default function TenantEmailDomainsPage() {
 
       resetForm();
       await loadData();
+      setRefreshKey((current) => current + 1);
     } catch (err) {
       setError(handleApiError(err));
     } finally {
@@ -138,6 +173,7 @@ export default function TenantEmailDomainsPage() {
       await tenantEmailDomainsService.delete(id);
       setSuccess("Email domain deleted.");
       await loadData();
+      setRefreshKey((current) => current + 1);
       if (editingId === id) resetForm();
     } catch (err) {
       setError(handleApiError(err));
@@ -250,55 +286,31 @@ export default function TenantEmailDomainsPage() {
           <div className="panel-title">
             <div>
               <h2>Domain rules</h2>
-              <p>{filteredDomains.length} configured rule{filteredDomains.length === 1 ? "" : "s"}</p>
+              <p>{domains.length} configured rule{domains.length === 1 ? "" : "s"}</p>
             </div>
           </div>
 
-          <div className="data-toolbar">
-            <input
-              className="search-input"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search domains, roles or tenants"
-            />
-          </div>
-
-          <div className="table-wrap">
-            <table className="superadmin-table">
-              <thead>
-                <tr>
-                  <th>Tenant</th>
-                  <th>Domain</th>
-                  <th>Role</th>
-                  <th>Auto approve</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredDomains.map((domain) => (
-                  <tr key={domain.id}>
-                    <td>{tenantNameById[domain.tenantId] || "Unknown tenant"}</td>
-                    <td><strong>{domain.domain}</strong></td>
-                    <td><span className="badge info">{domain.defaultRoleName}</span></td>
-                    <td>{domain.autoApprove ? "Yes" : "No"}</td>
-                    <td>
-                      <div className="inline-actions">
-                        <button type="button" onClick={() => startEdit(domain)}>Edit</button>
-                        <button type="button" onClick={() => handleDelete(domain.id)}><FaTrash /> Delete</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {!filteredDomains.length && (
-              <div className="empty-state">
-                <strong>No email domains found</strong>
-                Add a domain rule for a tenant.
-              </div>
-            )}
-          </div>
+          <DynamicTable
+            columns={domainColumns}
+            fetchData={fetchDomainRows}
+            defaultPageSize={5}
+            pageSizeOptions={[5, 10, 20]}
+            refreshKey={refreshKey}
+            actions={{
+              onEdit: startEdit,
+              custom: [
+                {
+                  key: "delete",
+                  label: (
+                    <>
+                      <FaTrash /> Delete
+                    </>
+                  ),
+                  onClick: (domain) => handleDelete(domain.id),
+                },
+              ],
+            }}
+          />
         </article>
       </div>
     </section>

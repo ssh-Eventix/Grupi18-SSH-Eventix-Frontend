@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import DynamicTable from "../../components/DynamicTable.jsx";
 import EntityCrudPage from "../../components/crud/EntityCrudPage";
-import { createCrudService, localCrudService } from "../../services/crudService";
+import api from "../../services/api";
+import { createCrudService } from "../../services/crudService";
 import { aiService } from "../../services/aiService";
 import { eventsService } from "../../services/eventsService";
 import { eventSectionsService } from "../../services/eventSectionsService";
-import { mergedCrudService } from "../../services/purchaseRecordsService";
 import { reviewsService } from "../../services/reviewsService";
 import { ticketService } from "../../services/ticketService";
 import { ticketTypeService } from "../../services/ticketTypeService";
@@ -20,6 +20,23 @@ const date = (name, label = name) => ({ name, label, type: "datetime-local" });
 const number = (name, label = name) => ({ name, label, type: "number" });
 const checkbox = (name, label = name) => ({ name, label, type: "checkbox" });
 const area = (name, label = name) => ({ name, label, type: "textarea" });
+
+const readonlyEmptyService = {
+  getAll: async () => [],
+  create: async () => null,
+  update: async () => null,
+  delete: async () => null,
+};
+
+const auditLogsService = {
+  getAll: async () => {
+    const response = await api.get("/AuditLog");
+    return response.data?.items ?? response.data?.Items ?? response.data?.data ?? [];
+  },
+  create: async () => null,
+  update: async () => null,
+  delete: async () => null,
+};
 
 export function TicketTypesPage() {
   const [events, setEvents] = useState([]);
@@ -448,7 +465,7 @@ export function BookingsPage() {
       title="Orders"
       description="Bookings created from buyer checkout."
       readonly
-      api={mergedCrudService("/Booking", "bookings")}
+      api={createCrudService("/Booking", { readonly: true })}
       initialForm={{}}
       fields={[
         text("referenceNumber", "Reference"),
@@ -469,7 +486,7 @@ export function PaymentsPage() {
     <EntityCrudPage
       title="Payments"
       description="Payments created from buyer checkout."
-      api={localCrudService("payments")}
+      api={createCrudService("/Payment")}
       initialForm={{ bookingId: uuid, amount: 0, paymentMethodId: uuid, transactionId: "", status: 0 }}
       fields={[
         text("bookingId", "Booking ID"),
@@ -489,8 +506,8 @@ export function PaymentMethodsPage() {
   return (
     <EntityCrudPage
       title="Payment Methods"
-      description="Demo payment method settings until backend endpoints are added."
-      api={localCrudService("paymentMethods", [{ id: "pm-card", name: "Card", provider: "Stripe", isActive: true }])}
+      description="Payment method settings from backend."
+      api={createCrudService("/PaymentMethod")}
       initialForm={{ name: "", provider: "", description: "", isActive: true }}
       fields={[
         text("name", "Name"),
@@ -1364,9 +1381,9 @@ export function AuditLogsPage() {
   return (
     <EntityCrudPage
       title="Audit Logs"
-      description="Read-only operational audit trail. Backend endpoints can be connected when available."
+      description="Read-only operational audit trail from backend."
       readonly
-      api={localCrudService("auditLogs", [{ id: "audit-demo", entityName: "Ticket", action: "Created", userId: uuid, createdAt: new Date().toISOString() }])}
+      api={auditLogsService}
       initialForm={{}}
       fields={[
         text("entityName", "Entity"),
@@ -1384,7 +1401,8 @@ export function AIRequestsPage() {
     <EntityCrudPage
       title="AI Request Logs"
       description="Track AI prompts, responses, token usage, and status."
-      api={localCrudService("aiRequestLogs")}
+      readonly
+      api={readonlyEmptyService}
       initialForm={{ userId: uuid, prompt: "", responseSummary: "", requestType: "", tokensUsed: 0, status: "" }}
       fields={[
         text("userId", "User ID"),

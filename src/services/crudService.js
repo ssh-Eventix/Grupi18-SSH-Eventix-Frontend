@@ -29,21 +29,3 @@ export const createCrudService = (url, options = {}) => ({
   },
 });
 
-export const localCrudService = (storageKey, seed = []) => ({
-  getAll: async () => JSON.parse(localStorage.getItem(storageKey) || JSON.stringify(seed)),
-  create: async (data) => {
-    const items = JSON.parse(localStorage.getItem(storageKey) || JSON.stringify(seed));
-    const item = { ...data, id: `${storageKey}-${Date.now()}` };
-    localStorage.setItem(storageKey, JSON.stringify([item, ...items]));
-    return item;
-  },
-  update: async (id, data) => {
-    const items = JSON.parse(localStorage.getItem(storageKey) || JSON.stringify(seed));
-    localStorage.setItem(storageKey, JSON.stringify(items.map((item) => item.id === id ? { ...item, ...data } : item)));
-    return data;
-  },
-  delete: async (id) => {
-    const items = JSON.parse(localStorage.getItem(storageKey) || JSON.stringify(seed));
-    localStorage.setItem(storageKey, JSON.stringify(items.filter((item) => item.id !== id)));
-  },
-});

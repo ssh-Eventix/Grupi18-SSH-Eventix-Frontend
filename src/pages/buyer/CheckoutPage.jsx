@@ -11,11 +11,6 @@ const parseStartPrice = (price) => {
   return match ? Number(match[0]) : 20;
 };
 
-const fallbackTicketTypes = [
-  { id: "regular", name: "Regular", price: 15, quantityAvailable: 50 },
-  { id: "vip", name: "VIP", price: 35, quantityAvailable: 20 },
-];
-
 const normalizeEmail = (email) => {
   if (Array.isArray(email)) {
     return email.find(Boolean) || "";
@@ -56,20 +51,16 @@ function CheckoutPage() {
 
     getTicketTypes(event.backendId || event.id, eventTenantSlug)
       .then((types) => {
-        const nextTypes = types.length ? types : event.isBackendEvent ? [] : fallbackTicketTypes;
-        setTicketTypes(nextTypes);
-        setSelectedTicketTypeId(searchParams.get("ticketTypeId") || nextTypes[0]?.id || "");
-        if (!nextTypes.length && event.isBackendEvent) {
+        setTicketTypes(types);
+        setSelectedTicketTypeId(searchParams.get("ticketTypeId") || types[0]?.id || "");
+        if (!types.length) {
           setTicketTypeError("No active ticket types were found for this event.");
         }
       })
       .catch(() => {
-        const nextTypes = event.isBackendEvent ? [] : fallbackTicketTypes;
-        setTicketTypes(nextTypes);
-        setSelectedTicketTypeId(searchParams.get("ticketTypeId") || nextTypes[0]?.id || "");
-        if (event.isBackendEvent) {
-          setTicketTypeError("Ticket types could not be loaded for this event.");
-        }
+        setTicketTypes([]);
+        setSelectedTicketTypeId("");
+        setTicketTypeError("Ticket types could not be loaded for this event.");
       });
   }, [event, searchParams]);
 

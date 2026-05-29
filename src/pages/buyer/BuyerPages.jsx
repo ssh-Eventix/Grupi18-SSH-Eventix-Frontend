@@ -14,7 +14,6 @@ import {
 } from "react-icons/fa";
 import { useAuth } from "../../auth/AuthContext";
 import { eventsApi } from "../../api/eventsApi";
-import { buyerEvents, buyerTickets } from "./buyerData";
 import {
   getBuyerNotifications,
   getBuyerReviews,
@@ -74,10 +73,10 @@ const normalizeEmail = (email) => {
 export function BuyerEventsPage({ title, filter }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const [events, setEvents] = useState(buyerEvents);
+  const [events, setEvents] = useState([]);
 
   useEffect(() => {
-    eventsApi.browse({ publicOnly: false }).then(setEvents);
+    eventsApi.browse({ publicOnly: false }).then(setEvents).catch(() => setEvents([]));
   }, []);
 
   const visibleEvents = events.filter(filter ?? (() => true));
@@ -125,7 +124,7 @@ export function FavoritesPage() {
 export function TicketsPage() {
   const [selectedTicket, setSelectedTicket] = useState(null);
   const storedTickets = useMemo(() => getBuyerTickets(), []);
-  const tickets = [...storedTickets, ...buyerTickets];
+  const tickets = storedTickets;
 
   return (
     <section className="buyer-page simple-buyer-page">
@@ -252,7 +251,6 @@ export function ProfilePage() {
           <button className="primary-button settings-save" type="button" onClick={saveProfile}>Save profile</button>
           <dl className="detail-list">
             <div><dt>Role</dt><dd>{user?.role || "Buyer"}</dd></div>
-            <div><dt>Tenant</dt><dd>{tenantSlug || "yllka"}</dd></div>
           </dl>
         </article>
 
