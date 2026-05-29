@@ -3,7 +3,8 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { FaCheckCircle, FaCreditCard, FaEnvelope, FaTicketAlt } from "react-icons/fa";
 import { eventsApi } from "../../api/eventsApi";
 import { useAuth } from "../../auth/AuthContext";
-import { createBooking } from "../../services/bookingService";
+import { createBooking, updateBookingStatus } from "../../services/bookingService";
+import { discountCouponService } from "../../services/discountCouponService";
 import { paymentService } from "../../services/paymentService";
 import { paymentMethodService } from "../../services/paymentMethodService";
 import { getTicketTypes } from "../../services/ticketTypeService";
@@ -33,6 +34,30 @@ const formatExpiry = (value) => {
   return `${digits.slice(0, 2)}/${digits.slice(2)}`;
 };
 
+const isCashMethod = (method) => {
+  const text = `${method?.name || ""} ${method?.provider || ""}`.toLowerCase();
+  return text.includes("cash");
+};
+
+const isValidCardExpiry = (value) => {
+  const match = /^(\d{2})\/(\d{2})$/.exec(value);
+
+  if (!match) return false;
+
+  const month = Number(match[1]);
+  const year = Number(match[2]);
+
+  if (month < 1 || month > 12) return false;
+
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1;
+  const currentYear = now.getFullYear() % 100;
+
+  return year > currentYear || (year === currentYear && month >= currentMonth);
+};
+
+const isValidCvc = (value) => /^\d{3}$/.test(value);
+
 const getEventTenantSlug = (event) => {
   if (event?.tenantSlug) return event.tenantSlug;
   if (event?.schemaName?.startsWith("tenant_")) {
@@ -40,6 +65,51 @@ const getEventTenantSlug = (event) => {
   }
 
   return "";
+};
+
+const parseCartItems = (searchParams) => {
+  const itemsParam = searchParams.get("items");
+
+  if (itemsParam) {
+    const candidates = [itemsParam];
+
+    try {
+      candidates.push(decodeURIComponent(itemsParam));
+    } catch {
+      // URLSearchParams usually decodes already; this keeps older double-encoded links working.
+    }
+
+    for (const candidate of candidates) {
+      try {
+        const parsed = JSON.parse(candidate);
+
+        if (Array.isArray(parsed)) {
+          return parsed
+            .map((item) => ({
+              ticketTypeId: item.ticketTypeId,
+              quantity: Number(item.quantity) || 0,
+            }))
+            .filter((item) => item.ticketTypeId && item.quantity > 0);
+        }
+      } catch {
+        // Try the next candidate.
+      }
+    }
+  }
+
+  const ticketTypeId = searchParams.get("ticketTypeId") || "";
+  const quantity = Number(searchParams.get("quantity")) || 1;
+
+  return ticketTypeId ? [{ ticketTypeId, quantity }] : [];
+};
+
+const buildCheckoutQuery = (items, email) => {
+  const params = new URLSearchParams({
+    items: JSON.stringify(items),
+    email: email || "",
+  });
+
+  return params.toString();
 };
 
 function PaymentPage() {
@@ -53,6 +123,8 @@ function PaymentPage() {
   const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState("");
   const [couponCode, setCouponCode] = useState("");
   const [couponMessage, setCouponMessage] = useState("");
+  const [couponValidation, setCouponValidation] = useState(null);
+  const [couponApplying, setCouponApplying] = useState(false);
   const [bookingError, setBookingError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(null);
@@ -64,8 +136,7 @@ function PaymentPage() {
     cvc: "",
   });
 
-  const selectedTicketTypeId = searchParams.get("ticketTypeId") || "";
-  const quantity = Number(searchParams.get("quantity")) || 1;
+  const cartItems = parseCartItems(searchParams);
 
   useEffect(() => {
     eventsApi.getById(eventId).then(setEvent);
@@ -102,14 +173,74 @@ function PaymentPage() {
     );
   }
 
-  const selectedTicketType = ticketTypes.find((type) => type.id === selectedTicketTypeId) || ticketTypes[0];
-  const unitPrice = selectedTicketType?.price ?? parseStartPrice(event.price);
-  const subtotal = unitPrice * quantity;
-  const discount = couponCode.trim().toUpperCase() === "EVENTIX10" ? Math.round(subtotal * 0.1 * 100) / 100 : 0;
-  const total = Math.max(0, subtotal - discount);
+  const cartLines = cartItems.map((item) => {
+    const ticketType = ticketTypes.find((type) => String(type.id) === String(item.ticketTypeId));
+    const unitPrice = Number(ticketType?.price ?? parseStartPrice(event.price));
+    const quantity = Number(item.quantity || 0);
+
+    return {
+      ...item,
+      ticketType,
+      unitPrice,
+      quantity,
+      lineTotal: unitPrice * quantity,
+    };
+  });
+  const quantity = cartLines.reduce((sum, line) => sum + line.quantity, 0);
+  const subtotal = cartLines.reduce((sum, line) => sum + line.lineTotal, 0);
+  const discount = couponValidation?.isValid ? Number(couponValidation.discountAmount || 0) : 0;
+  const total = couponValidation?.isValid
+    ? Math.max(0, Number(couponValidation.total ?? subtotal - discount))
+    : subtotal;
+  const cartSummary = cartLines
+    .map((line) => `${line.quantity} x ${line.ticketType?.name || "Ticket"}`)
+    .join(", ");
+  const selectedPaymentMethod = paymentMethods.find((method) => method.id === selectedPaymentMethodId);
+  const requiresCardDetails = total > 0 && selectedPaymentMethodId && !isCashMethod(selectedPaymentMethod);
 
   const updatePayment = (name, value) => {
     setPayment((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const applyCoupon = async () => {
+    const code = couponCode.trim();
+
+    setCouponMessage("");
+    setCouponValidation(null);
+
+    if (!code) {
+      setCouponMessage("Enter a coupon code first.");
+      return;
+    }
+
+    if (!event.isBackendEvent) {
+      setCouponMessage("Coupons are available only for backend events.");
+      return;
+    }
+
+    setCouponApplying(true);
+
+    try {
+      const result = await discountCouponService.validate({
+        eventId: event.backendId || event.id,
+        code,
+        subtotal,
+        tenantSlug: getEventTenantSlug(event),
+      });
+
+      setCouponValidation(result);
+      setCouponMessage(result?.message || (result?.isValid ? "Coupon applied." : "Coupon not valid."));
+    } catch (error) {
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data ||
+        error?.message ||
+        "Coupon could not be validated.";
+
+      setCouponMessage(typeof message === "string" ? message : "Coupon could not be validated.");
+    } finally {
+      setCouponApplying(false);
+    }
   };
 
   const confirmBooking = async (submitEvent) => {
@@ -127,7 +258,7 @@ function PaymentPage() {
         return;
       }
 
-      if (!selectedTicketTypeId || !selectedTicketType?.id) {
+      if (!cartItems.length || cartLines.some((line) => !line.ticketType?.id)) {
         setBookingError("Please choose a valid ticket type before payment.");
         setSubmitting(false);
         return;
@@ -139,13 +270,40 @@ function PaymentPage() {
         return;
       }
 
+      if (couponCode.trim() && !couponValidation?.isValid) {
+        setBookingError("Please apply a valid coupon or clear the coupon field.");
+        setSubmitting(false);
+        return;
+      }
+
+      if (requiresCardDetails) {
+        if (payment.cardNumber.replace(/\D/g, "").length !== 16) {
+          setBookingError("Card number must contain 16 digits.");
+          setSubmitting(false);
+          return;
+        }
+
+        if (!isValidCardExpiry(payment.expiry)) {
+          setBookingError("Card expiry date is invalid or expired.");
+          setSubmitting(false);
+          return;
+        }
+
+        if (!isValidCvc(payment.cvc)) {
+          setBookingError("CVC must contain exactly 3 digits.");
+          setSubmitting(false);
+          return;
+        }
+      }
+
       try {
+        const eventTenantSlug = getEventTenantSlug(event);
+
         backendBooking = await createBooking({
           userId: user.id,
           eventId: event.backendId || event.id,
-          ticketTypeId: selectedTicketTypeId,
-          tenantSlug: getEventTenantSlug(event),
-          quantity,
+          bookingItems: cartItems,
+          tenantSlug: eventTenantSlug,
         });
 
         if (!backendBooking?.id) {
@@ -159,7 +317,18 @@ function PaymentPage() {
             amount: total,
             status: 2,
             paidAt: new Date().toISOString(),
-            tenantSlug: getEventTenantSlug(event),
+            tenantSlug: eventTenantSlug,
+          });
+        } else {
+          await updateBookingStatus(backendBooking.id, "Confirmed", eventTenantSlug);
+          backendBooking = { ...backendBooking, status: "Confirmed" };
+        }
+
+        if (couponValidation?.isValid && couponCode.trim()) {
+          await discountCouponService.redeem({
+            eventId: event.backendId || event.id,
+            code: couponCode.trim(),
+            tenantSlug: eventTenantSlug,
           });
         }
       } catch (error) {
@@ -175,48 +344,62 @@ function PaymentPage() {
       }
     }
 
-    const ticket = {
-      id: backendBooking?.tickets?.[0]?.id || `ticket-${Date.now()}`,
+    const issuedTickets =
+      backendBooking?.tickets?.length > 0
+        ? backendBooking.tickets
+        : [{ id: `ticket-${Date.now()}`, ticketCode }];
+    const emailSentAt = new Date().toISOString();
+    const savedTickets = issuedTickets.map((issuedTicket, index) => ({
+      id: issuedTicket.id || `ticket-${Date.now()}-${index}`,
       event: event.title,
-      code: backendBooking?.tickets?.[0]?.ticketCode || ticketCode,
+      code: issuedTicket.ticketCode || ticketCode,
       date: event.date,
-      seat: selectedTicketType?.name || "General Admission",
+      seat: cartSummary || "General Admission",
       status: backendBooking?.status || "Confirmed",
-      quantity,
-      ticketType: selectedTicketType?.name || "Regular",
+      quantity: 1,
+      ticketType: cartSummary || "Regular",
       amountPaid: total,
       discount,
+      buyerEmail: payment.email,
+      userEmail: payment.email,
       email: payment.email,
       emailedTo: payment.email,
-      emailSentAt: new Date().toISOString(),
+      emailSentAt,
       bookingId: backendBooking?.id,
       referenceNumber: backendBooking?.referenceNumber,
       backendSynced: Boolean(backendBooking),
+    }));
+    const ticket = {
+      ...savedTickets[0],
+      quantity,
+      ticketCodes: savedTickets.map((item) => item.code),
     };
     const receipt = {
       id: `email-${Date.now()}`,
       to: payment.email,
       subject: `Your Eventix ticket for ${event.title}`,
-      ticketCode,
+      ticketCode: ticket.ticketCodes.join(", "),
       event: event.title,
       date: event.date,
       venue: event.venue,
       quantity,
       total: total === 0 ? "Free" : `EUR ${total}`,
-      sentAt: ticket.emailSentAt,
+      sentAt: emailSentAt,
     };
     const emailOutbox = readJson("ticketEmailOutbox", []);
 
-    saveBuyerTicket(ticket);
+    savedTickets.forEach(saveBuyerTicket);
     localStorage.setItem("ticketEmailOutbox", JSON.stringify([receipt, ...emailOutbox]));
     addBuyerNotification({
       title: "Ticket bought",
-      message: `${quantity} ${selectedTicketType?.name || "ticket"} ticket booked for ${event.title}.`,
+      message: `${quantity} ticket${quantity === 1 ? "" : "s"} booked for ${event.title}.`,
       eventId: event.id,
       ticketCode: ticket.code,
       type: "bookingitem",
     });
-    recordTicketTypePurchase(selectedTicketTypeId, quantity, selectedTicketType?.quantityAvailable);
+    cartLines.forEach((line) => {
+      recordTicketTypePurchase(line.ticketTypeId, line.quantity, line.ticketType?.quantityAvailable);
+    });
     setSuccess(ticket);
     setSubmitting(false);
   };
@@ -252,7 +435,7 @@ function PaymentPage() {
           <span style={{ backgroundImage: `url("${event.image}")` }} />
           <div>
             <strong>{event.title}</strong>
-            <small>{quantity} x {selectedTicketType?.name || "Ticket"} - {payment.email}</small>
+            <small>{cartSummary || "Ticket"} - {payment.email}</small>
           </div>
         </div>
 
@@ -263,22 +446,36 @@ function PaymentPage() {
               onChange={(input) => {
                 setCouponCode(input.target.value);
                 setCouponMessage("");
+                setCouponValidation(null);
               }}
-              placeholder="Try EVENTIX10"
+              placeholder="Enter coupon code"
               value={couponCode}
             />
             <button
               type="button"
-              onClick={() => setCouponMessage(discount > 0 ? "Coupon applied: 10% off" : "Coupon not valid")}
+              disabled={couponApplying}
+              onClick={applyCoupon}
             >
-              Apply
+              {couponApplying ? "Checking..." : "Apply"}
             </button>
           </div>
           {couponMessage && <small>{couponMessage}</small>}
         </label>
 
         <div className="checkout-total">
-          <span>Total</span>
+          <span>Subtotal</span>
+          <strong>{subtotal === 0 ? "Free" : `EUR ${subtotal}`}</strong>
+        </div>
+
+        {discount > 0 && (
+          <div className="checkout-total">
+            <span>Discount</span>
+            <strong>- EUR {discount}</strong>
+          </div>
+        )}
+
+        <div className="checkout-total">
+          <span>Total ({quantity} tickets)</span>
           <strong>{total === 0 ? "Free" : `EUR ${total}`}</strong>
         </div>
 
@@ -300,52 +497,55 @@ function PaymentPage() {
           </label>
         )}
 
-        <div className="payment-form">
-          <label>
-            Name on card
-            <input
-              onChange={(input) => updatePayment("cardName", input.target.value)}
-              placeholder="Arne Attendee"
-              required
-              value={payment.cardName}
-            />
-          </label>
-          <label>
-            Card number
-            <input
-              inputMode="numeric"
-              onChange={(input) => updatePayment("cardNumber", formatCardNumber(input.target.value))}
-              placeholder="4242 4242 4242 4242"
-              required
-              value={payment.cardNumber}
-            />
-          </label>
-          <div className="payment-grid">
+        {requiresCardDetails && (
+          <div className="payment-form">
             <label>
-              Expiry
+              Name on card
               <input
-                onChange={(input) => updatePayment("expiry", formatExpiry(input.target.value))}
-                placeholder="MM/YY"
+                onChange={(input) => updatePayment("cardName", input.target.value)}
+                placeholder="Arne Attendee"
                 required
-                value={payment.expiry}
+                value={payment.cardName}
               />
             </label>
             <label>
-              CVC
+              Card number
               <input
                 inputMode="numeric"
-                maxLength="4"
-                onChange={(input) => updatePayment("cvc", input.target.value.replace(/\D/g, "").slice(0, 4))}
-                placeholder="123"
+                onChange={(input) => updatePayment("cardNumber", formatCardNumber(input.target.value))}
+                placeholder="4242 4242 4242 4242"
                 required
-                value={payment.cvc}
+                value={payment.cardNumber}
               />
             </label>
+            <div className="payment-grid">
+              <label>
+                Expiry
+                <input
+                  inputMode="numeric"
+                  onChange={(input) => updatePayment("expiry", formatExpiry(input.target.value))}
+                  placeholder="MM/YY"
+                  required
+                  value={payment.expiry}
+                />
+              </label>
+              <label>
+                CVC
+                <input
+                  inputMode="numeric"
+                  maxLength="3"
+                  onChange={(input) => updatePayment("cvc", input.target.value.replace(/\D/g, "").slice(0, 3))}
+                  placeholder="123"
+                  required
+                  value={payment.cvc}
+                />
+              </label>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="checkout-actions">
-          <Link className="auth-secondary-button" to={`/buyer/checkout/${event.id}?ticketTypeId=${selectedTicketTypeId}&quantity=${quantity}`}>
+          <Link className="auth-secondary-button" to={`/buyer/checkout/${event.id}?${buildCheckoutQuery(cartItems, payment.email)}`}>
             Back
           </Link>
           <button className="primary-button" disabled={submitting} type="submit">

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import DynamicTable from "../../components/DynamicTable.jsx";
 import EntityCrudPage from "../../components/crud/EntityCrudPage";
 import api from "../../services/api";
+import bookingService from "../../services/bookingService";
 import { createCrudService } from "../../services/crudService";
 import { aiService } from "../../services/aiService";
 import { eventsService } from "../../services/eventsService";
@@ -20,6 +21,7 @@ const date = (name, label = name) => ({ name, label, type: "datetime-local" });
 const number = (name, label = name) => ({ name, label, type: "number" });
 const checkbox = (name, label = name) => ({ name, label, type: "checkbox" });
 const area = (name, label = name) => ({ name, label, type: "textarea" });
+const select = (name, label, options) => ({ name, label, type: "select", options });
 
 const readonlyEmptyService = {
   getAll: async () => [],
@@ -33,6 +35,13 @@ const auditLogsService = {
     const response = await api.get("/AuditLog");
     return response.data?.items ?? response.data?.Items ?? response.data?.data ?? [];
   },
+  create: async () => null,
+  update: async () => null,
+  delete: async () => null,
+};
+
+const ordersService = {
+  getAll: () => bookingService.getAll(),
   create: async () => null,
   update: async () => null,
   delete: async () => null,
@@ -460,24 +469,85 @@ export function TicketTypesPage() {
 }
 
 export function BookingsPage() {
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [error, setError] = useState("");
+
+  const columns = [
+    { key: "referenceNumber", label: "Reference" },
+    { key: "eventTitle", label: "Event" },
+    { key: "buyerEmail", label: "Buyer Email" },
+    { key: "status", label: "Status" },
+    { key: "totalText", label: "Total" },
+    { key: "quantity", label: "Qty" },
+    { key: "ticketCodes", label: "Ticket Codes" },
+    { key: "bookingDateText", label: "Booked At" },
+  ];
+
+  const fetchOrders = useCallback(async (page, pageSize, search) => {
+    setError("");
+
+    try {
+      const result = await ordersService.getAll();
+      const rows = (Array.isArray(result) ? result : result?.data ?? [])
+        .map((order) => ({
+          ...order,
+          buyerEmail: order.buyerEmail || order.email || order.emailedTo || order.userEmail || order.userId || "-",
+          ticketCodes:
+            order.tickets?.map((ticket) => ticket.ticketCode).filter(Boolean).join(", ") ||
+            order.ticketCode ||
+            "",
+          totalText: `EUR ${Number(order.totalAmount || 0).toFixed(2)}`,
+          bookingDateText: order.bookingDate ? new Date(order.bookingDate).toLocaleString() : "",
+        }))
+        .sort((a, b) => new Date(b.bookingDate || 0) - new Date(a.bookingDate || 0));
+      const term = search.trim().toLowerCase();
+      const filtered = rows.filter((order) =>
+        [
+          order.referenceNumber,
+          order.eventTitle,
+          order.buyerEmail,
+          order.status,
+          order.totalText,
+          order.quantity,
+          order.ticketCodes,
+          order.bookingDateText,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(term)
+      );
+      const start = (page - 1) * pageSize;
+
+      return {
+        data: filtered.slice(start, start + pageSize),
+        totalPages: Math.ceil(filtered.length / pageSize) || 1,
+      };
+    } catch (err) {
+      setError(handleApiError(err));
+      return { data: [], totalPages: 1 };
+    }
+  }, []);
+
   return (
-    <EntityCrudPage
-      title="Orders"
-      description="Bookings created from buyer checkout."
-      readonly
-      api={createCrudService("/Booking", { readonly: true })}
-      initialForm={{}}
-      fields={[
-        text("referenceNumber", "Reference"),
-        text("eventTitle", "Event"),
-        text("buyerEmail", "Buyer Email"),
-        text("status", "Status"),
-        number("totalAmount", "Total"),
-        number("quantity", "Qty"),
-        text("ticketCode", "Ticket Code"),
-        text("source", "Source"),
-      ]}
-    />
+    <section className="page crud-page">
+      <div className="crud-header">
+        <div>
+          <h1>Orders</h1>
+          <p>Bookings created from buyer checkout.</p>
+        </div>
+      </div>
+
+      {error && <div className="form-alert">{error}</div>}
+
+      <DynamicTable
+        columns={columns}
+        fetchData={fetchOrders}
+        defaultPageSize={5}
+        pageSizeOptions={[5, 10, 20, 50]}
+        refreshKey={refreshKey}
+      />
+    </section>
   );
 }
 
@@ -520,20 +590,97 @@ export function PaymentMethodsPage() {
 }
 
 export function CouponsPage() {
+  const [events, setEvents] = useState([]);
+
+  useEffect(() => {
+    eventsService
+      .getAll()
+      .then((data) => setEvents(Array.isArray(data) ? data : data?.data ?? []))
+      .catch(() => setEvents([]));
+  }, []);
+
+  const couponApi = useMemo(
+    () =>
+      createCrudService("/DiscountCoupon", {
+        mapCreate: (data) => ({
+          eventId: data.eventId,
+          code: data.code?.trim().toUpperCase(),
+          type: Number(data.type),
+          discountValue: Number(data.discountValue),
+          validFrom: data.validFrom ? new Date(data.validFrom).toISOString() : null,
+          validTo: data.validTo ? new Date(data.validTo).toISOString() : null,
+          usageLimit: data.usageLimit === "" ? null : Number(data.usageLimit),
+        }),
+        mapUpdate: (data) => ({
+          eventId: data.eventId,
+          code: data.code?.trim().toUpperCase(),
+          type: Number(data.type),
+          discountValue: Number(data.discountValue),
+          validFrom: data.validFrom ? new Date(data.validFrom).toISOString() : null,
+          validTo: data.validTo ? new Date(data.validTo).toISOString() : null,
+          usageLimit: data.usageLimit === "" ? null : Number(data.usageLimit),
+        }),
+      }),
+    []
+  );
+
+  const eventOptions = useMemo(
+    () => [
+      { value: "", label: "Select event" },
+      ...events.map((event) => ({
+        value: event.id,
+        label: event.title || event.name || event.id,
+      })),
+    ],
+    [events]
+  );
+
   return (
     <EntityCrudPage
       title="Discount Coupons"
       description="Create promo codes and discount rules for events."
-      api={createCrudService("/DiscountCoupon")}
-      initialForm={{ eventId: uuid, code: "", discountType: 0, discountValue: 0, validFrom: "", validTo: "", usageLimit: 0 }}
+      api={couponApi}
+      initialForm={{ eventId: "", code: "", type: 1, discountValue: 0, validFrom: "", validTo: "", usageLimit: "" }}
       fields={[
-        text("eventId", "Event ID"),
+        select("eventId", "Event", eventOptions),
         text("code", "Code"),
-        number("discountType", "Discount Type"),
+        select("type", "Discount Type", [
+          { value: 1, label: "Percentage" },
+          { value: 2, label: "Fixed Amount" },
+        ]),
         number("discountValue", "Value"),
         date("validFrom", "Valid From"),
         date("validTo", "Valid To"),
         number("usageLimit", "Usage Limit"),
+      ]}
+      tableFields={[
+        {
+          name: "eventId",
+          label: "Event",
+          render: (item) =>
+            events.find((event) => String(event.id) === String(item.eventId))?.title ||
+            events.find((event) => String(event.id) === String(item.eventId))?.name ||
+            item.eventId,
+        },
+        text("code", "Code"),
+        {
+          name: "type",
+          label: "Type",
+          render: (item) => (Number(item.type) === 2 ? "Fixed Amount" : "Percentage"),
+        },
+        number("discountValue", "Value"),
+        {
+          name: "validFrom",
+          label: "Valid From",
+          render: (item) => (item.validFrom ? new Date(item.validFrom).toLocaleString() : ""),
+        },
+        {
+          name: "validTo",
+          label: "Valid To",
+          render: (item) => (item.validTo ? new Date(item.validTo).toLocaleString() : ""),
+        },
+        number("usageLimit", "Usage Limit"),
+        number("usageCount", "Used"),
       ]}
     />
   );
@@ -685,6 +832,7 @@ export function CheckInsPage() {
 
       setTicket(updatedTicket);
       mergeTicketIntoList(updatedTicket);
+      await loadTickets();
       setMessage(response?.message || "Ticket successfully checked in.");
     } catch (err) {
       setError(handleApiError(err));
@@ -713,6 +861,7 @@ export function CheckInsPage() {
 
       setTicket(updatedTicket);
       mergeTicketIntoList(updatedTicket);
+      await loadTickets();
       setMessage(response?.message || "Ticket successfully checked in.");
     } catch (err) {
       setError(handleApiError(err));
@@ -729,6 +878,7 @@ export function CheckInsPage() {
   const ticketRows = useMemo(() => {
     return tickets.map((item) => ({
       ...item,
+      buyerEmail: item.buyerEmail || item.email || item.emailedTo || item.userEmail || item.userId || "-",
       statusText: statusLabels[item.status] ?? String(item.status),
       issuedAtText: formatDate(item.issuedAt),
       usedAtText: item.usedAt ? formatDate(item.usedAt) : "Not checked in",
