@@ -90,15 +90,35 @@ export default function EntityCrudPage({
     setMessage("");
 
     try {
+      let savedRecord = null;
+
       if (editingId) {
-        await api.update(editingId, form);
+        savedRecord = await api.update(editingId, form);
+
+        if (savedRecord?.id) {
+          setItems((current) =>
+            current.map((item) =>
+              item.id === editingId ? { ...item, ...savedRecord } : item
+            )
+          );
+        } else {
+          await loadData();
+        }
       } else {
-        await api.create(form);
+        savedRecord = await api.create(form);
+
+        if (savedRecord?.id) {
+          setItems((current) => [
+            savedRecord,
+            ...current.filter((item) => item.id !== savedRecord.id),
+          ]);
+        } else {
+          await loadData();
+        }
       }
 
       setForm(initialForm);
       setEditingId(null);
-      loadData();
       setMessage(editingId ? "Record updated." : "Record created.");
     } catch (err) {
       setError(handleApiError(err));

@@ -4,7 +4,8 @@ import { FaCheckCircle, FaCreditCard, FaEnvelope, FaTicketAlt } from "react-icon
 import { eventsApi } from "../../api/eventsApi";
 import { useAuth } from "../../auth/AuthContext";
 import { createBooking } from "../../services/bookingService";
-import { savePurchaseRecords } from "../../services/purchaseRecordsService";
+import { paymentService } from "../../services/paymentService";
+import { paymentMethodService } from "../../services/paymentMethodService";
 import { getTicketTypes } from "../../services/ticketTypeService";
 import {
   addBuyerNotification,
@@ -18,11 +19,6 @@ const parseStartPrice = (price) => {
   const match = price.match(/\d+/);
   return match ? Number(match[0]) : 20;
 };
-
-const fallbackTicketTypes = [
-  { id: "regular", name: "Regular", price: 15, quantityAvailable: 50 },
-  { id: "vip", name: "VIP", price: 35, quantityAvailable: 20 },
-];
 
 const formatCardNumber = (value) =>
   value.replace(/\D/g, "").slice(0, 16).replace(/(.{4})/g, "$1 ").trim();
@@ -53,6 +49,8 @@ function PaymentPage() {
   const { user } = useAuth();
   const [event, setEvent] = useState(null);
   const [ticketTypes, setTicketTypes] = useState([]);
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState("");
   const [couponCode, setCouponCode] = useState("");
   const [couponMessage, setCouponMessage] = useState("");
   const [bookingError, setBookingError] = useState("");
@@ -78,8 +76,20 @@ function PaymentPage() {
     const eventTenantSlug = getEventTenantSlug(event);
 
     getTicketTypes(event.backendId || event.id, eventTenantSlug)
-      .then((types) => setTicketTypes(types.length ? types : event.isBackendEvent ? [] : fallbackTicketTypes))
-      .catch(() => setTicketTypes(event.isBackendEvent ? [] : fallbackTicketTypes));
+      .then(setTicketTypes)
+      .catch(() => setTicketTypes([]));
+
+    paymentMethodService
+      .getAll(eventTenantSlug)
+      .then((methods) => {
+        const activeMethods = methods.filter((method) => method.isActive !== false);
+        setPaymentMethods(activeMethods);
+        setSelectedPaymentMethodId(activeMethods[0]?.id || "");
+      })
+      .catch(() => {
+        setPaymentMethods([]);
+        setSelectedPaymentMethodId("");
+      });
   }, [event]);
 
   if (!event) {
@@ -123,6 +133,12 @@ function PaymentPage() {
         return;
       }
 
+      if (total > 0 && !selectedPaymentMethodId) {
+        setBookingError("No active payment method is configured for this tenant.");
+        setSubmitting(false);
+        return;
+      }
+
       try {
         backendBooking = await createBooking({
           userId: user.id,
@@ -131,14 +147,29 @@ function PaymentPage() {
           tenantSlug: getEventTenantSlug(event),
           quantity,
         });
+
+        if (!backendBooking?.id) {
+          throw new Error("Booking was created, but the API did not return a valid booking id.");
+        }
+
+        if (total > 0) {
+          await paymentService.create({
+            bookingId: backendBooking.id,
+            paymentMethodId: selectedPaymentMethodId,
+            amount: total,
+            status: 2,
+            paidAt: new Date().toISOString(),
+            tenantSlug: getEventTenantSlug(event),
+          });
+        }
       } catch (error) {
         const message =
           error?.response?.data?.message ||
           error?.response?.data ||
           error?.message ||
-          "Backend booking failed. Please try again.";
+          "Backend booking or payment failed. Please try again.";
 
-        setBookingError(typeof message === "string" ? message : "Backend booking failed. Please try again.");
+        setBookingError(typeof message === "string" ? message : "Backend booking or payment failed. Please try again.");
         setSubmitting(false);
         return;
       }
@@ -186,16 +217,6 @@ function PaymentPage() {
       type: "bookingitem",
     });
     recordTicketTypePurchase(selectedTicketTypeId, quantity, selectedTicketType?.quantityAvailable);
-    savePurchaseRecords({
-      backendBooking,
-      event,
-      payment,
-      quantity,
-      ticket,
-      ticketType: selectedTicketType,
-      total,
-      user,
-    });
     setSuccess(ticket);
     setSubmitting(false);
   };
@@ -260,6 +281,24 @@ function PaymentPage() {
           <span>Total</span>
           <strong>{total === 0 ? "Free" : `EUR ${total}`}</strong>
         </div>
+
+        {total > 0 && (
+          <label className="ticket-type-picker">
+            Payment method
+            <select
+              required
+              value={selectedPaymentMethodId}
+              onChange={(input) => setSelectedPaymentMethodId(input.target.value)}
+            >
+              <option value="">Select payment method</option>
+              {paymentMethods.map((method) => (
+                <option key={method.id} value={method.id}>
+                  {method.name} {method.provider ? `- ${method.provider}` : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
 
         <div className="payment-form">
           <label>

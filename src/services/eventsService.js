@@ -22,6 +22,15 @@ const validationError = (message) => {
   };
 };
 
+export const normalizeEventsResponse = (data) => {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.$values)) return data.$values;
+  if (Array.isArray(data?.data?.$values)) return data.data.$values;
+  return [];
+};
+
 const normalizeEventPayload = (data) => {
   const title = data.title?.trim();
   const venueId = data.venueId?.trim();
@@ -62,8 +71,14 @@ const normalizeEventPayload = (data) => {
 
 export const eventsService = {
   getAll: async (search = "") => {
-    const response = await api.get(`${EVENTS_URL}?search=${search}`);
-    return response.data;
+    const cleanSearch = String(search || "").trim();
+    const response = await api.get(EVENTS_URL, {
+      params: {
+        ...(cleanSearch ? { search: cleanSearch } : {}),
+        _: Date.now(),
+      },
+    });
+    return normalizeEventsResponse(response.data);
   },
 
   getById: async (id) => {

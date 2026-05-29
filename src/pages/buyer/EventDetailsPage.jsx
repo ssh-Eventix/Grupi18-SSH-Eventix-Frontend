@@ -22,11 +22,6 @@ import {
   toggleFavoriteEvent,
 } from "../../services/buyerStorage";
 
-const fallbackTicketTypes = [
-  { id: "regular", name: "Regular", price: 15, quantityAvailable: 50 },
-  { id: "vip", name: "VIP", price: 35, quantityAvailable: 20 },
-];
-
 const getEventTenantSlug = (event) => {
   if (event?.tenantSlug) return event.tenantSlug;
   if (event?.schemaName?.startsWith("tenant_")) {
@@ -80,21 +75,14 @@ function EventDetailsPage() {
       .then(setReviews)
       .catch(() => setReviews([]));
 
-    if (isPublicPage) {
-      setTicketTypes(fallbackTicketTypes);
-      setSelectedTicketTypeId(fallbackTicketTypes[0].id);
-      return;
-    }
-
     getAvailableTicketTypes(event.backendId || event.id, eventTenantSlug)
       .then((types) => {
-        const nextTypes = types.length ? types : fallbackTicketTypes;
-        setTicketTypes(nextTypes);
-        setSelectedTicketTypeId(nextTypes[0]?.id || "");
+        setTicketTypes(types);
+        setSelectedTicketTypeId(types[0]?.id || "");
       })
       .catch(() => {
-        setTicketTypes(fallbackTicketTypes);
-        setSelectedTicketTypeId(fallbackTicketTypes[0].id);
+        setTicketTypes([]);
+        setSelectedTicketTypeId("");
       });
   }, [event, isPublicPage]);
 
