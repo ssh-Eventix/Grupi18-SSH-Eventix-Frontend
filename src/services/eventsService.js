@@ -38,6 +38,32 @@ const normalizeEventPayload = (data) => {
     return validationError("End date must be after start date.");
   }
 
+  const tag = () => {
+          if (!startUtc) return false;
+
+          const eventDate = new Date(startUtc);
+          if (isNaN(eventDate.getTime())) return false;
+
+          const now = new Date();
+          const day = now.getDay();
+
+          const daysUntilFriday = day <= 5 ? 5 - day : 6;
+
+          const friday = new Date(now);
+          friday.setDate(now.getDate() + daysUntilFriday);
+          friday.setHours(0, 0, 0, 0);
+
+          const sunday = new Date(friday);
+          sunday.setDate(friday.getDate() + 2);
+          sunday.setHours(23, 59, 59, 999);
+
+          if(eventDate >= friday && eventDate <= sunday){
+            return "This Weekend";
+          }else{
+            return "";
+          }
+        }
+
   return {
     venueId,
     eventCategoryId,
@@ -47,6 +73,7 @@ const normalizeEventPayload = (data) => {
     organizerName: data.organizerName?.trim() || "",
     startUtc,
     endUtc,
+    tag: tag(),
     status: Number(data.status ?? 0),
     visibility: Number(data.visibility ?? 0),
     bannerImageUrl: data.bannerImageUrl?.trim() || "",
