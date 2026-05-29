@@ -1,14 +1,9 @@
 import { useAuth } from "../auth/AuthContext";
 
-const profile = {
-  name: "Demo User",
-  email: "demo@eventix.com",
-  role: "Buyer",
-  tenantSlug: "eventix",
-};
-
 function ProfilePage() {
-  const { logout } = useAuth();
+  const { logout, tenantSlug, user } = useAuth();
+  const email = Array.isArray(user?.email) ? user.email.find(Boolean) : user?.email;
+  const name = user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(" ") || email || "Current user";
 
   const handleLogout = () => {
     logout("/");
@@ -23,19 +18,19 @@ function ProfilePage() {
           <tbody>
             <tr>
               <th>Name</th>
-              <td>{profile.name}</td>
+              <td>{name}</td>
             </tr>
             <tr>
               <th>Email</th>
-              <td>{profile.email}</td>
+              <td>{email || "-"}</td>
             </tr>
             <tr>
               <th>Role</th>
-              <td>{profile.role}</td>
+              <td>{user?.role || "-"}</td>
             </tr>
             <tr>
               <th>Tenant</th>
-              <td>{profile.tenantSlug}</td>
+              <td>{tenantSlug || user?.tenantSlug || "-"}</td>
             </tr>
           </tbody>
         </table>

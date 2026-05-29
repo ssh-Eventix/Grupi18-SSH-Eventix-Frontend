@@ -10,9 +10,11 @@ const normalizeTicket = (ticket) => ({
 
 const normalizeBooking = (booking) => {
   const tickets = Array.isArray(booking?.tickets) ? booking.tickets.map(normalizeTicket) : [];
+  const id = booking?.id ?? booking?.Id ?? booking?.bookingId ?? booking?.BookingId ?? "";
 
   return {
     ...booking,
+    id,
     tickets,
     ticketCount: tickets.length,
     quantity: booking.quantity ?? tickets.length,

@@ -20,8 +20,7 @@ const uniqueById = (items) => {
 
 export const venuesService = {
   getAll: async () => {
-    const response = await api.get(`${URL}/public`);
-    return response.data;
+    return venuesService.getAllAvailable();
   },
 
   getAllTenant: async () => {
