@@ -37,7 +37,7 @@ const buildTicketQrValue = (ticket) => {
   });
 };
 
-const EventCards = ({ events, onFavoriteClick }) => (
+export const EventCards = ({ events, onFavoriteClick }) => (
   <div className="event-card-grid">
     {events.map((event) => (
       <article className="event-card" key={event.id}>
