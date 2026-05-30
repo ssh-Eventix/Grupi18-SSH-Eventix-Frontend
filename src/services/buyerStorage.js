@@ -48,17 +48,34 @@ export const toggleFavoriteEvent = (event) => {
 
 export const getBuyerNotifications = () => readArray("buyerNotifications");
 
+export const getUnreadBuyerNotifications = () =>
+  getBuyerNotifications().filter((notification) => !notification.read);
+
+export const markBuyerNotificationRead = (notificationId) => {
+  const nextNotifications = getBuyerNotifications().map((notification) =>
+    notification.id === notificationId ? { ...notification, read: true } : notification
+  );
+
+  writeJson("buyerNotifications", nextNotifications);
+  window.dispatchEvent(new CustomEvent("buyerNotificationsChanged", { detail: nextNotifications }));
+  return nextNotifications;
+};
+
 export const addBuyerNotification = (notification) => {
   const notifications = getBuyerNotifications();
-  writeJson("buyerNotifications", [
+  const id = notification.id || `notification-${Date.now()}`;
+  const nextNotifications = [
     {
-      id: notification.id || `notification-${Date.now()}`,
+      id,
       createdAt: new Date().toISOString(),
       read: false,
       ...notification,
     },
-    ...notifications,
-  ]);
+    ...notifications.filter((item) => item.id !== id),
+  ];
+
+  writeJson("buyerNotifications", nextNotifications);
+  window.dispatchEvent(new CustomEvent("buyerNotificationsChanged", { detail: nextNotifications }));
 };
 
 export const getBuyerReviews = () => readArray("buyerReviews");
