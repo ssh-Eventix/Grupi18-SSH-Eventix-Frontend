@@ -32,7 +32,7 @@ export default function EntityCrudPage({
 
     try {
       const res = await api.getAll();
-      setItems(Array.isArray(res) ? res : res.data ?? []);
+      setItems(Array.isArray(res) ? res : (res.data ?? []));
     } catch (err) {
       setError(handleApiError(err));
     } finally {
@@ -49,8 +49,14 @@ export default function EntityCrudPage({
 
     setForm({
       ...form,
-      [name]: type === "checkbox" ? checked : value,
+      [name]:
+        type === "checkbox"
+          ? checked
+          : name === "provider"
+            ? Number(value)
+            : value,
     });
+
     setError("");
     setMessage("");
   };
@@ -98,8 +104,8 @@ export default function EntityCrudPage({
         if (savedRecord?.id) {
           setItems((current) =>
             current.map((item) =>
-              item.id === editingId ? { ...item, ...savedRecord } : item
-            )
+              item.id === editingId ? { ...item, ...savedRecord } : item,
+            ),
           );
         } else {
           await loadData();
@@ -158,12 +164,16 @@ export default function EntityCrudPage({
       const filtered = items.filter((item) =>
         visibleFields
           .map((field) => {
-            const value = field.render ? field.render(item) : formatValue(item[field.name]);
-            return typeof value === "string" || typeof value === "number" ? value : formatValue(value);
+            const value = field.render
+              ? field.render(item)
+              : formatValue(item[field.name]);
+            return typeof value === "string" || typeof value === "number"
+              ? value
+              : formatValue(value);
           })
           .join(" ")
           .toLowerCase()
-          .includes(term)
+          .includes(term),
       );
       const start = (page - 1) * pageSize;
 
@@ -172,7 +182,7 @@ export default function EntityCrudPage({
         totalPages: Math.ceil(filtered.length / pageSize) || 1,
       };
     },
-    [items, visibleFields]
+    [items, visibleFields],
   );
 
   return (
@@ -188,89 +198,100 @@ export default function EntityCrudPage({
       {message && <div className="form-alert success">{message}</div>}
 
       {!readonly && (
-      <form className="dynamic-form" onSubmit={handleSubmit}>
-        {fields.map((field) => (
-          <div className={`form-field ${field.fullWidth ? "full-span" : ""}`} key={field.name}>
-            <div className="field-label-row">
-              <label>{field.label}</label>
-              {field.action && (
-                <button
-                  className="field-action-button"
-                  type="button"
-                  title={field.action.title || field.action.label}
-                  disabled={fieldActionLoading[field.name]}
-                  onClick={() => handleFieldAction(field)}
+        <form className="dynamic-form" onSubmit={handleSubmit}>
+          {fields.map((field) => (
+            <div
+              className={`form-field ${field.fullWidth ? "full-span" : ""}`}
+              key={field.name}
+            >
+              <div className="field-label-row">
+                <label>{field.label}</label>
+                {field.action && (
+                  <button
+                    className="field-action-button"
+                    type="button"
+                    title={field.action.title || field.action.label}
+                    disabled={fieldActionLoading[field.name]}
+                    onClick={() => handleFieldAction(field)}
+                  >
+                    {field.action.icon &&
+                      (() => {
+                        const Icon = field.action.icon;
+                        return <Icon />;
+                      })()}
+                    <span>
+                      {fieldActionLoading[field.name]
+                        ? field.action.loadingLabel || "Generating..."
+                        : field.action.label}
+                    </span>
+                  </button>
+                )}
+              </div>
+
+              {field.type === "textarea" ? (
+                <textarea
+                  name={field.name}
+                  onChange={handleChange}
+                  value={form[field.name] ?? ""}
+                  rows={field.rows ?? 4}
+                  maxLength={field.maxLength}
+                  required={field.required}
+                />
+              ) : field.type === "select" ? (
+                <select
+                  name={field.name}
+                  onChange={handleChange}
+                  value={form[field.name] ?? ""}
+                  required={field.required}
                 >
-                  {field.action.icon &&
-                    (() => {
-                      const Icon = field.action.icon;
-                      return <Icon />;
-                    })()}
-                  <span>
-                    {fieldActionLoading[field.name]
-                      ? field.action.loadingLabel || "Generating..."
-                      : field.action.label}
-                  </span>
-                </button>
+                  {(field.options ?? []).map((option) => (
+                    <option
+                      key={option.value ?? option}
+                      value={option.value ?? option}
+                    >
+                      {option.label ?? option}
+                    </option>
+                  ))}
+                </select>
+              ) : field.type === "checkbox" ? (
+                <input
+                  type="checkbox"
+                  name={field.name}
+                  checked={form[field.name] || false}
+                  onChange={handleChange}
+                />
+              ) : (
+                <input
+                  type={field.type || "text"}
+                  name={field.name}
+                  value={form[field.name] ?? ""}
+                  onChange={handleChange}
+                  min={field.min}
+                  step={field.step}
+                  maxLength={field.maxLength}
+                  required={field.required}
+                />
               )}
             </div>
+          ))}
 
-            {field.type === "textarea" ? (
-              <textarea
-                name={field.name}
-                onChange={handleChange}
-                value={form[field.name] ?? ""}
-                rows={field.rows ?? 4}
-                maxLength={field.maxLength}
-                required={field.required}
-              />
-            ) : field.type === "select" ? (
-              <select
-                name={field.name}
-                onChange={handleChange}
-                value={form[field.name] ?? ""}
-                required={field.required}
-              >
-                {(field.options ?? []).map((option) => (
-                  <option key={option.value ?? option} value={option.value ?? option}>
-                    {option.label ?? option}
-                  </option>
-                ))}
-              </select>
-            ) : field.type === "checkbox" ? (
-              <input
-                type="checkbox"
-                name={field.name}
-                checked={form[field.name] || false}
-                onChange={handleChange}
-              />
-            ) : (
-              <input
-                type={field.type || "text"}
-                name={field.name}
-                value={form[field.name] ?? ""}
-                onChange={handleChange}
-                min={field.min}
-                step={field.step}
-                maxLength={field.maxLength}
-                required={field.required}
-              />
-            )}
-          </div>
-        ))}
-
-        <button className="primary-button" type="submit">{editingId ? "Update" : "Create"}</button>
-        {editingId && (
-          <button type="button" onClick={() => {
-            setEditingId(null);
-            setForm(initialForm);
-            setError("");
-            setMessage("");
-          }}>
-            Cancel
+          <button className="primary-button" type="submit">
+            {editingId ? "Update" : "Create"}
           </button>
-        )}
-      </form>
+          {editingId && (
+            <button
+              type="button"
+              onClick={() => {
+                setEditingId(null);
+                setForm(initialForm);
+                setError("");
+                setMessage("");
+              }}
+            >
+              Cancel
+            </button>
+          )}
+        </form>
       )}
 
       {loading ? (

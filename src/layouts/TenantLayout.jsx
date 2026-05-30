@@ -10,7 +10,7 @@ import {
   FaSignOutAlt,
   FaStar,
   FaStore,
-  FaUsers,
+  FaUsers
 } from "react-icons/fa";
 import { useAuth } from "../auth/AuthContext";
 
@@ -18,6 +18,7 @@ const adminLinks = [
   { path: "/tenant", label: "Overview", icon: FaChartBar, end: true },
   { path: "/tenant/events", label: "Events", icon: FaRegCalendarAlt },
   { path: "/tenant/tickets", label: "Tickets", icon: FaCreditCard },
+  { path: "/tenant/payment-methods", label: "Payment Methods", icon: FaCreditCard },
   { path: "/tenant/coupons", label: "Coupons", icon: FaPercent },
   { path: "/tenant/orders", label: "Orders", icon: FaClipboardList },
   { path: "/tenant/check-in", label: "Check-in", icon: FaQrcode },
