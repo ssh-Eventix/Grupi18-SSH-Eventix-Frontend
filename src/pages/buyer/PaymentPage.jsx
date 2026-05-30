@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { FaCheckCircle, FaCreditCard, FaEnvelope, FaTicketAlt } from "react-icons/fa";
+import { FaBell, FaCheckCircle, FaCreditCard, FaTicketAlt } from "react-icons/fa";
 import { eventsApi } from "../../api/eventsApi";
 import { useAuth } from "../../auth/AuthContext";
 import { createBooking, updateBookingStatus } from "../../services/bookingService";
@@ -414,8 +414,8 @@ function PaymentPage() {
             Your ticket for <strong>{success.event}</strong> is confirmed.
           </p>
           <div className="email-confirmation">
-            <FaEnvelope />
-            <span>Ticket email sent to {success.email}</span>
+            <FaBell />
+            <span>Your ticket is ready in Notifications.</span>
           </div>
           <code>{success.code}</code>
           <button className="primary-button" type="button" onClick={() => navigate("/buyer/tickets")}>

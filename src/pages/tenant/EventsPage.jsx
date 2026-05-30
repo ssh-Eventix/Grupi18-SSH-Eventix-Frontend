@@ -59,6 +59,45 @@ const labelFromOptions = (options, value) => {
 
 const formatDate = (value) => (value ? new Date(value).toLocaleString() : "");
 
+const getEventSortTime = (event) => {
+  const value = event.createdAtUtc || event.updatedAtUtc || event.startUtc;
+  const time = value ? new Date(value).getTime() : 0;
+
+  return Number.isNaN(time) ? 0 : time;
+};
+
+const mergeEventsById = (...eventGroups) => {
+  const map = new Map();
+
+  eventGroups.flat().filter(Boolean).forEach((event) => {
+    const key = event.id || event.slug || event.title;
+    if (key) map.set(String(key), { ...map.get(String(key)), ...event });
+  });
+
+  return [...map.values()].sort((a, b) => getEventSortTime(b) - getEventSortTime(a));
+};
+
+const filterEvents = (events, searchValue) => {
+  const term = String(searchValue || "").trim().toLowerCase();
+
+  if (!term) return events;
+
+  return events.filter((event) =>
+    [
+      event.title,
+      event.slug,
+      event.description,
+      event.organizerName,
+      event.venueName,
+      event.eventCategoryName,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase()
+      .includes(term)
+  );
+};
+
 const formatVenueOptionLabel = (venue) => {
   const name = venue.code ? `${venue.name} (${venue.code})` : venue.name;
   const source = venue.source === "tenant" ? "Tenant" : "Public";
@@ -76,6 +115,7 @@ export default function EventsPage() {
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
+  const [recentEvents, setRecentEvents] = useState([]);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
@@ -84,7 +124,8 @@ export default function EventsPage() {
     setError("");
 
     try {
-      const data = toArray(await eventsService.getAll(searchValue));
+      const backendEvents = toArray(await eventsService.getAll(searchValue));
+      const data = filterEvents(mergeEventsById(recentEvents, backendEvents), searchValue);
       const startIndex = (page - 1) * pageSize;
 
       setEvents(data);
@@ -100,7 +141,7 @@ export default function EventsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [recentEvents]);
 
   const loadEvents = useCallback(() => {
     setRefreshKey((current) => current + 1);
@@ -325,10 +366,14 @@ export default function EventsPage() {
     try {
       if (editingId) {
         await eventsService.update(editingId, form);
+        setRecentEvents((current) =>
+          mergeEventsById(current, [{ ...form, id: editingId, updatedAtUtc: new Date().toISOString() }])
+        );
         loadEvents();
         setMessage("Event updated.");
       } else {
-        await eventsService.create(form);
+        const createdEvent = await eventsService.create(form);
+        setRecentEvents((current) => mergeEventsById(current, [createdEvent]));
         loadEvents();
         setMessage("Event created.");
       }
@@ -558,6 +603,7 @@ export default function EventsPage() {
         columns={eventColumns}
         fetchData={fetchEventsForTable}
         defaultPageSize={5}
+        pageSizeOptions={[5, 10, 20]}
         refreshKey={refreshKey}
         actions={{
           onEdit: handleEdit,
