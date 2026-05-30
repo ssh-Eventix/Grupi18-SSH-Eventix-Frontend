@@ -12,6 +12,7 @@ import { ticketService } from "../../services/ticketService";
 import { ticketTypeService } from "../../services/ticketTypeService";
 import { usersService } from "../../services/usersService";
 import { handleApiError } from "../../utils/apiErrorHandler";
+import Alert from "../../components/Alert";
 import "./Tenant.css";
 
 const uuid = "00000000-0000-0000-0000-000000000000";
@@ -343,8 +344,8 @@ export function TicketTypesPage() {
         </div>
       </div>
 
-      {error && <div className="form-alert">{error}</div>}
-      {message && <div className="form-alert success">{message}</div>}
+      <Alert type="error" message={error} onClose={() => setError("")} />
+      <Alert type="success" message={message} onClose={() => setMessage("")} />
 
       <form className="dynamic-form" onSubmit={handleSubmit}>
         <div className="form-field">
@@ -566,7 +567,7 @@ export function BookingsPage() {
         </div>
       </div>
 
-      {error && <div className="form-alert">{error}</div>}
+      <Alert type="error" message={error} onClose={() => setError("")} />
 
       <DynamicTable
         columns={columns}
@@ -1020,8 +1021,8 @@ export function CheckInsPage() {
         </div>
       </div>
 
-      {error && <div className="form-alert">{error}</div>}
-      {message && <div className="form-alert success">{message}</div>}
+      <Alert type="error" message={error} onClose={() => setError("")} />
+      <Alert type="success" message={message} onClose={() => setMessage("")} />
 
       <form className="dynamic-form" onSubmit={handleLookup}>
         <div className="form-field">
@@ -1240,7 +1241,7 @@ export function AttendeesPage() {
         </div>
       </div>
 
-      {error && <div className="form-alert">{error}</div>}
+      <Alert type="error" message={error} onClose={() => setError("")} />
 
       <div className="dynamic-form attendees-filter">
         <div className="form-field">
@@ -1508,8 +1509,8 @@ export function ReviewsPage() {
         </div>
       </div>
 
-      {error && <div className="form-alert">{error}</div>}
-      {message && <div className="form-alert success">{message}</div>}
+      <Alert type="error" message={error} onClose={() => setError("")} />
+      <Alert type="success" message={message} onClose={() => setMessage("")} />
 
       <div className="dynamic-form attendees-filter">
         <div className="form-field">

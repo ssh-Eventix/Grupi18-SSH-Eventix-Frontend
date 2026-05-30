@@ -6,6 +6,7 @@ import { eventCategoriesService } from "../../services/eventCategoriesService";
 import { eventsService } from "../../services/eventsService";
 import { venuesService } from "../../services/venuesService";
 import { handleApiError } from "../../utils/apiErrorHandler";
+import Alert from "../../components/Alert";
 
 const statusOptions = [
   { value: 1, label: "Draft" },
@@ -381,12 +382,11 @@ export default function EventsPage() {
       <div className="crud-header">
         <div>
           <h1>Events</h1>
-          <p>{loading ? "Loading events..." : `${events.length} tenant events loaded from backend.`}</p>
         </div>
       </div>
 
-      {error && <div className="form-alert">{error}</div>}
-      {message && <div className="form-alert success">{message}</div>}
+      <Alert type="error" message={error} onClose={() => setError("")} />
+      <Alert type="success" message={message} onClose={() => setMessage("")} />
 
       <form className="dynamic-form" onSubmit={handleSubmit}>
         <div className="form-field">

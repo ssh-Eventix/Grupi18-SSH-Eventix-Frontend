@@ -5,6 +5,7 @@ import { tenantEmailDomainsService } from "../../services/tenantEmailDomainsServ
 import { tenantsService } from "../../services/tenantsService";
 import { handleApiError } from "../../utils/apiErrorHandler";
 import "./SuperAdmin.css";
+import Alert from "../../components/Alert";
 
 const initialForm = {
   tenantId: "",
@@ -33,24 +34,31 @@ export default function TenantEmailDomainsPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setError("");
+const unwrap = (result) => {
+  if (Array.isArray(result)) return result;
+  if (Array.isArray(result?.data)) return result.data;
+  if (Array.isArray(result?.items)) return result.items;
+  return [];
+};
 
-    try {
-      const [tenantData, domainData] = await Promise.all([
-        tenantsService.getAll(),
-        tenantEmailDomainsService.getAll(),
-      ]);
+const loadData = useCallback(async () => {
+  setLoading(true);
+  setError("");
 
-      setTenants(Array.isArray(tenantData) ? tenantData : []);
-      setDomains(Array.isArray(domainData) ? domainData : []);
-    } catch (err) {
-      setError(handleApiError(err));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  try {
+    const [tenantData, domainData] = await Promise.all([
+      tenantsService.getAll(),
+      tenantEmailDomainsService.getAll(),
+    ]);
+
+    setTenants(unwrap(tenantData));
+    setDomains(unwrap(domainData));
+  } catch (err) {
+    setError(handleApiError(err));
+  } finally {
+    setLoading(false);
+  }
+}, []);
 
   useEffect(() => {
     loadData();
@@ -192,8 +200,8 @@ export default function TenantEmailDomainsPage() {
         </div>
       </header>
 
-      {error && <div className="form-alert">{error}</div>}
-      {success && <div className="success-alert">{success}</div>}
+      <Alert type="error" message={error} onClose={() => setError("")} />
+      <Alert type="success" message={success} onClose={() => setSuccess("")} />
 
       <div className="superadmin-grid">
         <article className="superadmin-card span-5">
@@ -278,6 +286,16 @@ export default function TenantEmailDomainsPage() {
               <strong>{selectedTenant.name}</strong>
               <span>{selectedTenant.slug}</span>
               <span>{selectedTenant.contactEmail || "No contact email"}</span>
+
+              <hr />
+
+              {domains
+                .filter((domain) => domain.tenantId === selectedTenant.id)
+                .map((domain) => (
+                  <span key={domain.id}>
+                    {domain.domain} — {domain.defaultRoleName}
+                  </span>
+                ))}
             </div>
           )}
         </article>

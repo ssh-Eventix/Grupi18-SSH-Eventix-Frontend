@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import DynamicTable from "../../components/DynamicTable.jsx";
 import { staffService } from "../../services/staffService";
 import { handleApiError } from "../../utils/apiErrorHandler";
+import Alert from "../../components/Alert";
 
 const initialForm = {
   firstName: "",
@@ -146,8 +147,8 @@ export default function StaffPage() {
         </div>
       </div>
 
-      {error && <div className="form-alert">{error}</div>}
-      {message && <div className="form-alert success">{message}</div>}
+      <Alert type="error" message={error} onClose={() => setError("")} />
+      <Alert type="success" message={message} onClose={() => setMessage("")} />
 
       <form className="dynamic-form" onSubmit={handleSubmit}>
         <div className="form-field">

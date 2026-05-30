@@ -3,6 +3,7 @@ import { eventsService } from "../../services/eventsService";
 import { eventSectionsService } from "../../services/eventSectionsService";
 import { venueSectionsService } from "../../services/venueSectionsService";
 import { handleApiError } from "../../utils/apiErrorHandler";
+import Alert from "../../components/Alert";
 import "./Tenant.css";
 
 export default function EventSectionsPage() {
@@ -217,8 +218,8 @@ export default function EventSectionsPage() {
         </div>
       </div>
 
-      {error && <div className="form-alert">{error}</div>}
-      {message && <div className="form-alert success">{message}</div>}
+    <Alert type="error" message={error} onClose={() => setError("")} />
+    <Alert type="success" message={message} onClose={() => setMessage("")} />
 
       <form className="dynamic-form" onSubmit={handleSubmit}>
         <div className="form-field full">

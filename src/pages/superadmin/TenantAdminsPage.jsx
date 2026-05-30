@@ -5,6 +5,7 @@ import { tenantEmailDomainsService } from "../../services/tenantEmailDomainsServ
 import { tenantsService } from "../../services/tenantsService";
 import { handleApiError } from "../../utils/apiErrorHandler";
 import "./SuperAdmin.css";
+import Alert from "../../components/Alert";
 
 const initialForm = {
   tenantId: "",
@@ -132,8 +133,8 @@ const allowedDomains = useMemo(() => {
         </div>
       </header>
 
-      {error && <div className="form-alert">{error}</div>}
-      {success && <div className="success-alert">{success}</div>}
+      <Alert type="error" message={error} onClose={() => setError("")} />
+      <Alert type="success" message={success} onClose={() => setSuccess("")} />
 
       <div className="superadmin-grid">
         <article className="superadmin-card span-8">
