@@ -12,7 +12,7 @@ import {
 const links = [
   { path: "/buyer", label: "Discover", icon: FaCompass, end: true },
   { path: "/buyer/top-events", label: "Top Events", icon: FaCalendarAlt },
-  { path: "/buyer/weekend", label: "This Weekend", icon: FaTicketAlt },
+  { path: "/buyer/weekend", label: "This Week", icon: FaTicketAlt },
   { path: "/buyer/free-events", label: "Free Events", icon: FaReceipt },
   { path: "/buyer/tickets", label: "My Tickets", icon: FaTicketAlt },
   { path: "/buyer/favorites", label: "Favorites", icon: FaHeart },
