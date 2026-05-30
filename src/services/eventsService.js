@@ -23,12 +23,44 @@ const validationError = (message) => {
 };
 
 export const normalizeEventsResponse = (data) => {
-  if (Array.isArray(data)) return data;
-  if (Array.isArray(data?.data)) return data.data;
-  if (Array.isArray(data?.items)) return data.items;
-  if (Array.isArray(data?.$values)) return data.$values;
-  if (Array.isArray(data?.data?.$values)) return data.data.$values;
-  return [];
+  const events =
+    Array.isArray(data) ? data :
+    Array.isArray(data?.data) ? data.data :
+    Array.isArray(data?.items) ? data.items :
+    Array.isArray(data?.$values) ? data.$values :
+    Array.isArray(data?.data?.$values) ? data.data.$values :
+    [];
+
+  return events.map(normalizeEvent);
+};
+
+export const normalizeEvent = (event) => {
+  if (!event) return event;
+
+  return {
+    ...event,
+    id: event.id ?? event.Id,
+    venueId: event.venueId ?? event.VenueId,
+    venueName: event.venueName ?? event.VenueName,
+    eventCategoryId: event.eventCategoryId ?? event.EventCategoryId,
+    eventCategoryName: event.eventCategoryName ?? event.EventCategoryName,
+    title: event.title ?? event.Title ?? "",
+    slug: event.slug ?? event.Slug ?? "",
+    description: event.description ?? event.Description ?? "",
+    organizerName: event.organizerName ?? event.OrganizerName ?? "",
+    startUtc: event.startUtc ?? event.StartUtc,
+    endUtc: event.endUtc ?? event.EndUtc,
+    status: Number(event.status ?? event.Status ?? 1),
+    visibility: Number(event.visibility ?? event.Visibility ?? 2),
+    bannerImageUrl: event.bannerImageUrl ?? event.BannerImageUrl ?? "",
+    maxTicketsPerOrder: event.maxTicketsPerOrder ?? event.MaxTicketsPerOrder ?? 10,
+    minTicketsPerOrder: event.minTicketsPerOrder ?? event.MinTicketsPerOrder ?? 1,
+    isFree: Boolean(event.isFree ?? event.IsFree),
+    isPublished: Boolean(event.isPublished ?? event.IsPublished),
+    currency: event.currency ?? event.Currency ?? "EUR",
+    createdAtUtc: event.createdAtUtc ?? event.CreatedAtUtc,
+    updatedAtUtc: event.updatedAtUtc ?? event.UpdatedAtUtc,
+  };
 };
 
 const normalizeEventPayload = (data) => {
@@ -83,13 +115,13 @@ export const eventsService = {
 
   getById: async (id) => {
     const response = await api.get(`${EVENTS_URL}/${id}`);
-    return response.data;
+    return normalizeEvent(response.data);
   },
 
   create: async (data) => {
     const payload = normalizeEventPayload(data);
     const response = await api.post(EVENTS_URL, payload);
-    return response.data;
+    return normalizeEvent(response.data);
   },
 
   update: async (id, data) => {

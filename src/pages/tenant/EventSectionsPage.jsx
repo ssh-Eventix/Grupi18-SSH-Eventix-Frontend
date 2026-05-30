@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { eventsService } from "../../services/eventsService";
 import { eventSectionsService } from "../../services/eventSectionsService";
+import { venuesService } from "../../services/venuesService";
 import { venueSectionsService } from "../../services/venueSectionsService";
 import { handleApiError } from "../../utils/apiErrorHandler";
 import Alert from "../../components/Alert";
@@ -9,6 +10,7 @@ import "./Tenant.css";
 export default function EventSectionsPage() {
   const [events, setEvents] = useState([]);
   const [eventSections, setEventSections] = useState([]);
+  const [venues, setVenues] = useState([]);
 
   const [selectedEventId, setSelectedEventId] = useState("");
   const [selectedVenueSectionId, setSelectedVenueSectionId] = useState("");
@@ -33,6 +35,16 @@ export default function EventSectionsPage() {
   }, [events, selectedEventId]);
 
   const selectedVenueId = selectedEvent?.venueId || "";
+  const venueNameById = useMemo(() => {
+    return venues.reduce((map, venue) => {
+      map[String(venue.id)] = venue.name;
+      return map;
+    }, {});
+  }, [venues]);
+  const selectedVenueName =
+    selectedEvent?.venueName ||
+    venueNameById[String(selectedVenueId)] ||
+    "";
 
   const selectedVenueSection = useMemo(() => {
     return venueSections.find(
@@ -53,13 +65,20 @@ export default function EventSectionsPage() {
     setMessage("");
 
     try {
-      const eventsData = await eventsService.getAll();
+      const [eventsData, venuesData] = await Promise.all([
+        eventsService.getAll(),
+        venuesService.getAllAvailable(),
+      ]);
 
       const nextEvents = Array.isArray(eventsData)
         ? eventsData
         : eventsData?.data ?? [];
+      const nextVenues = Array.isArray(venuesData)
+        ? venuesData
+        : venuesData?.data ?? [];
 
       setEvents(nextEvents);
+      setVenues(nextVenues);
 
       if (nextEvents.length > 0) {
         const firstEventId = nextEvents[0].id;
@@ -262,7 +281,7 @@ export default function EventSectionsPage() {
           <label>Venue</label>
           <div className="readonly-info">
             {selectedEvent
-              ? selectedEvent.venueName || selectedEvent.venueId || "Venue selected from event"
+              ? selectedVenueName || "Venue selected from event"
               : "Select an event first"}
           </div>
         </div>

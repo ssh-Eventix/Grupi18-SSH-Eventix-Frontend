@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { FaMinus, FaPlus, FaTicketAlt, FaTrash } from "react-icons/fa";
+import { FaCheckCircle, FaTicketAlt, FaTrash } from "react-icons/fa";
 import { eventsApi } from "../../api/eventsApi";
 import { useAuth } from "../../auth/AuthContext";
 import { getTicketTypes } from "../../services/ticketTypeService";
@@ -23,6 +23,17 @@ const getEventTenantSlug = (event) => {
 };
 
 const encodeItems = (items) => JSON.stringify(items);
+
+const formatMoney = (value) => {
+  const amount = Number(value || 0);
+  return amount === 0 ? "Free" : `EUR ${amount.toFixed(2)}`;
+};
+
+const getStockLevel = (type) => {
+  const left = Number(type?.quantityAvailable || type?.ticketsLeft || 0);
+
+  return { left };
+};
 
 const parseCartItems = (searchParams) => {
   const itemsParam = searchParams.get("items");
@@ -135,11 +146,12 @@ function CheckoutPage() {
   const updateQuantity = (ticketTypeId, nextQuantity) => {
     const type = ticketTypeById[String(ticketTypeId)];
     const maxQuantity = Math.max(1, Number(type?.quantityAvailable || 1));
+    const parsedQuantity = Number(String(nextQuantity).replace(/\D/g, "")) || 1;
 
     setCartItems((items) =>
       items.map((item) =>
         item.ticketTypeId === ticketTypeId
-          ? { ...item, quantity: Math.min(Math.max(1, nextQuantity), maxQuantity) }
+          ? { ...item, quantity: Math.min(Math.max(1, parsedQuantity), maxQuantity) }
           : item
       )
     );
@@ -151,13 +163,14 @@ function CheckoutPage() {
 
     setCartItems((items) => {
       const existing = items.find((item) => item.ticketTypeId === ticketTypeId);
+      const maxQuantity = Number(type.quantityAvailable || 0);
 
       if (existing) {
         return items.map((item) =>
           item.ticketTypeId === ticketTypeId
             ? {
                 ...item,
-                quantity: Math.min(Number(item.quantity || 0) + 1, Number(type.quantityAvailable || 1)),
+                quantity: Math.min(Number(item.quantity || 0) + 1, maxQuantity),
               }
             : item
         );
@@ -216,19 +229,33 @@ function CheckoutPage() {
         <div className="ticket-type-picker">
           <span>Available ticket types</span>
           <div className="ticket-option-list">
-            {ticketTypes.map((type) => (
-              <button
-                key={type.id}
-                type="button"
-                className="ticket-option-button"
-                disabled={Number(type.quantityAvailable || 0) <= 0}
-                onClick={() => addTicketType(type.id)}
-              >
-                <span>{type.name}</span>
-                <strong>{Number(type.price || 0) === 0 ? "Free" : `EUR ${type.price}`}</strong>
-                <small>{type.quantityAvailable} left</small>
-              </button>
-            ))}
+            {ticketTypes.map((type) => {
+              const selectedQuantity =
+                cartItems.find((item) => String(item.ticketTypeId) === String(type.id))?.quantity || 0;
+              const { left } = getStockLevel(type);
+              const reachedLimit = selectedQuantity >= left;
+              const isSoldOut = left <= 0;
+              const isLowStock = left > 0 && left <= 10;
+
+              return (
+                <button
+                  key={type.id}
+                  type="button"
+                  className={`ticket-option-button ${selectedQuantity ? "selected" : ""} ${isLowStock ? "low-stock" : ""}`}
+                  disabled={isSoldOut || reachedLimit}
+                  onClick={() => addTicketType(type.id)}
+                >
+                  <span>
+                    <strong>{type.name}</strong>
+                    {selectedQuantity > 0 && <em><FaCheckCircle /> {selectedQuantity} selected</em>}
+                  </span>
+                  <b>{formatMoney(type.price)}</b>
+                  {(isSoldOut || isLowStock) && (
+                    <small>{isSoldOut ? "Sold out" : "Tickets are selling out soon"}</small>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -246,18 +273,19 @@ function CheckoutPage() {
                   <div className="checkout-cart-item" key={item.ticketTypeId}>
                     <div>
                       <strong>{type?.name || "Ticket"}</strong>
-                      <small>{Number(type?.price || 0) === 0 ? "Free" : `EUR ${type?.price}`} each</small>
+                      <small>{formatMoney(type?.price)} each</small>
                     </div>
-                    <div className="quantity-row compact">
-                      <button type="button" onClick={() => updateQuantity(item.ticketTypeId, item.quantity - 1)}>
-                        <FaMinus />
-                      </button>
-                      <strong>{item.quantity}</strong>
-                      <button type="button" onClick={() => updateQuantity(item.ticketTypeId, item.quantity + 1)}>
-                        <FaPlus />
-                      </button>
+                    <div className="checkout-quantity-control">
+                      <label htmlFor={`quantity-${item.ticketTypeId}`}>Quantity</label>
+                      <input
+                        id={`quantity-${item.ticketTypeId}`}
+                        inputMode="numeric"
+                        maxLength={4}
+                        onChange={(input) => updateQuantity(item.ticketTypeId, input.target.value)}
+                        value={item.quantity}
+                      />
                     </div>
-                    <strong>{lineTotal === 0 ? "Free" : `EUR ${lineTotal}`}</strong>
+                    <strong>{formatMoney(lineTotal)}</strong>
                     <button type="button" className="icon-button danger" onClick={() => removeTicketType(item.ticketTypeId)}>
                       <FaTrash />
                     </button>
