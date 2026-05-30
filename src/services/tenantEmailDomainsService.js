@@ -36,6 +36,7 @@ export const tenantEmailDomainsService = {
       defaultRoleName: data.defaultRoleName,
       autoApprove: Boolean(data.autoApprove),
     });
+
     return response.data;
   },
 

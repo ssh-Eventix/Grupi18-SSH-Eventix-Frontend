@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { FaCopy, FaEdit, FaRedo, FaStore, FaTrash } from "react-icons/fa";
 import { tenantsService } from "../../services/tenantsService";
 import { handleApiError } from "../../utils/apiErrorHandler";
+import Alert from "../../components/Alert";
 import "./SuperAdmin.css";
 
 const initialForm = {
@@ -167,8 +168,8 @@ export default function TenantsPage() {
         </div>
       </header>
 
-      {error && <div className="form-alert">{error}</div>}
-      {success && <div className="success-alert">{success}</div>}
+      <Alert type="error" message={error} onClose={() => setError("")} />
+      <Alert type="success" message={success} onClose={() => setSuccess("")} />
 
       <div className="superadmin-grid">
         <article className="superadmin-card span-12">

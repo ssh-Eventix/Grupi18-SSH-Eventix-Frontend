@@ -6,6 +6,7 @@ import { handleApiError } from "../../utils/apiErrorHandler";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import "./SuperAdmin.css";
+import Alert from "../../components/Alert";
 
 const initialForm = { targetTenantId: "", targetPublicUserId: "", minutes: 10, reason: "" };
 const minuteOptions = [10, 15, 30, 60];
@@ -130,8 +131,8 @@ const handleStop = async () => {
         </div>
       </header>
 
-      {error && <div className="form-alert">{error}</div>}
-      {success && <div className="success-alert">{success}</div>}
+      <Alert type="error" message={error} onClose={() => setError("")} />
+      <Alert type="success" message={success} onClose={() => setSuccess("")} />
 
       <div className="superadmin-grid">
         <article className="superadmin-card span-8">

@@ -10,20 +10,24 @@ import {
   FaSignOutAlt,
   FaStar,
   FaStore,
-  FaUsers
+  FaUsers,
+  FaLayerGroup,
+  FaTicketAlt,
+  FaUserFriends,
 } from "react-icons/fa";
 import { useAuth } from "../auth/AuthContext";
 
 const adminLinks = [
   { path: "/tenant", label: "Overview", icon: FaChartBar, end: true },
   { path: "/tenant/events", label: "Events", icon: FaRegCalendarAlt },
-  { path: "/tenant/tickets", label: "Tickets", icon: FaCreditCard },
+    { path: "/tenant/event-sections", label: "Event Sections", icon: FaLayerGroup },
+  { path: "/tenant/tickets", label: "Tickets", icon: FaTicketAlt },
   { path: "/tenant/payment-methods", label: "Payment Methods", icon: FaCreditCard },
   { path: "/tenant/coupons", label: "Coupons", icon: FaPercent },
   { path: "/tenant/orders", label: "Orders", icon: FaClipboardList },
   { path: "/tenant/check-in", label: "Check-in", icon: FaQrcode },
   { path: "/tenant/attendees", label: "Attendees", icon: FaUsers },
-  { path: "/tenant/staff", label: "Staff", icon: FaUsers },
+  { path: "/tenant/staff", label: "Staff", icon: FaUserFriends },
   { path: "/tenant/reviews", label: "Reviews", icon: FaStar },
   { path: "/tenant/reports", label: "Reports", icon: FaChartBar },
 ];

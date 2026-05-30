@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import api from "../../services/api";
 import { handleApiError } from "../../utils/apiErrorHandler";
 import "./SuperAdmin.css";
+import Alert from "../../components/Alert";
 
 const emptyVenue = {
   name: "",
@@ -266,8 +267,8 @@ export default function SuperAdminVenuesPage() {
         decided later in Event Sections.
       </p>
 
-      {error && <div className="form-alert">{error}</div>}
-      {success && <div className="success-alert">{success}</div>}
+      <Alert type="error" message={error} onClose={() => setError("")} />
+      <Alert type="success" message={success} onClose={() => setSuccess("")} />
 
       <div style={styles.grid}>
         <section style={styles.card}>
