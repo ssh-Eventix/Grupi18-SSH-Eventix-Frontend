@@ -32,6 +32,14 @@ const getWeekRange = (offsetWeeks = 0) => {
   return { start, end };
 };
 
+const cleanDescription = (text = "") => {
+  return text
+    .replace(/Event Details:.*?(?=Engaging Event Description|Welcome|$)/i, "")
+    .replace(/---/g, "")
+    .trim()
+    .slice(0, 170);
+};
+
 const isEventInWeek = (event, offsetWeeks) => {
   const eventDate = new Date(event.startUtc || event.date);
   if (Number.isNaN(eventDate.getTime())) return false;
@@ -67,6 +75,7 @@ function HomePage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState("");
   const [chatOpen, setChatOpen] = useState(false);
+  const [heroIndex, setHeroIndex] = useState(0);
 
   const cityOptions = useMemo(
     () => [...new Set(events.map((event) => event.city).filter(Boolean))],
@@ -120,7 +129,18 @@ function HomePage() {
     });
   }, [category, city, dateFilter, events, freeOnly, query]);
 
-  const heroEvent = visibleEvents[0] || events[0];
+const heroEvents = visibleEvents.slice(0, 3);
+const heroEvent = heroEvents[heroIndex] || heroEvents[0] || events[0];
+
+useEffect(() => {
+  if (heroEvents.length <= 1) return;
+
+  const interval = setInterval(() => {
+    setHeroIndex((current) => (current + 1) % heroEvents.length);
+  }, 4000);
+
+  return () => clearInterval(interval);
+}, [heroEvents.length]);
 
   const handleSearch = (event) => {
     event.preventDefault();
@@ -268,13 +288,24 @@ function HomePage() {
             <section className="hero-event" style={{ backgroundImage: `linear-gradient(90deg, rgba(0,0,0,.82), rgba(0,0,0,.28)), url("${heroEvent.image}")` }}>
               <div>
                 <h1>{heroEvent.title}</h1>
-                <p>{heroEvent.description}</p>
+                <p>{cleanDescription(heroEvent.description)}</p>
                 <div className="hero-meta">
                   <span><FaCalendarAlt /> {heroEvent.date}</span>
                   {heroEvent.time && <span>{heroEvent.time}</span>}
                   <span><FaMapMarkerAlt /> {heroEvent.venue}</span>
                 </div>
                 <Link className="hero-ticket-link" to={`${eventDetailsBase}/${heroEvent.id}`}>View Details</Link>
+                <div className="hero-dots">
+                {heroEvents.map((item, index) => (
+                  <button
+                    key={item.id}
+                    className={index === heroIndex ? "active" : ""}
+                    onClick={() => setHeroIndex(index)}
+                    type="button"
+                    aria-label={`Show ${item.title}`}
+                  />
+                ))}
+              </div>
               </div>
             </section>
           )}

@@ -197,6 +197,7 @@ a {
 .page {
   max-width: 1180px;
   margin: 0 auto;
+  padding-top: 28px;
 }
 
 .dashboard-header {
@@ -666,7 +667,7 @@ h2 {
   display: grid;
   gap: 10px;
   grid-template-columns: minmax(220px, 1fr) 220px auto auto;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .search-input {
@@ -812,14 +813,16 @@ h2 {
   background:
     linear-gradient(90deg, rgba(0, 0, 0, 0.86), rgba(0, 0, 0, 0.32)),
     linear-gradient(135deg, #12020a, #8a123d 42%, #f97316 56%, #220028 80%);
-  border-radius: 9px;
+  border-radius: 15px;
   color: white;
   display: flex;
-  justify-content: space-between;
-  min-height: 166px;
+  align-items: center;
+  min-height: 300px;
   overflow: hidden;
-  padding: 24px;
+  padding: 30px;
   position: relative;
+  background-size: cover;
+  background-position: center;
 }
 
 .hero-event::after {
@@ -838,13 +841,16 @@ h2 {
 
 .hero-event h1 {
   color: white;
-  font-size: 30px;
+  font-size: 40px;
   margin-bottom: 4px;
+  line-height: 1.1;
 }
 
 .hero-event p {
   color: rgba(255, 255, 255, 0.86);
-  font-size: 14px;
+  font-size: 15px;
+  max-width: 680px;
+  line-height: 1.6;
 }
 
 .hero-meta {
@@ -854,11 +860,44 @@ h2 {
   margin: 18px 0;
 }
 
+.hero-dots {
+  display: flex;
+  gap: 6px;
+  margin-top: 18px;
+}
+
+.hero-dots span {
+  width: 22px;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.hero-dots span.active {
+  background: #ff6b00;
+}
+
 .hero-meta span {
   align-items: center;
   display: flex;
   font-size: 13px;
   gap: 7px;
+}
+
+.hero-dots button {
+  width: 10px;
+  height: 10px;
+  min-height: unset;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+  flex: 0 0 10px;
+}
+
+.hero-dots button.active {
+  background: #ff6b00;
 }
 
 .slider-dots {
