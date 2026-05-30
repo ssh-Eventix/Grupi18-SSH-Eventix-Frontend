@@ -6,7 +6,6 @@ import {
   FaMapMarkerAlt,
   FaMinus,
   FaPlus,
-  FaRobot,
   FaStar,
   FaTicketAlt,
   FaUserTie,
@@ -17,6 +16,7 @@ import { useAuth } from "../../auth/AuthContext";
 import { getAvailableTicketTypes } from "../../services/ticketTypeService";
 import { reviewsService } from "../../services/reviewsService";
 import {
+  addBuyerNotification,
   addBuyerReview,
   isFavoriteEvent,
   toggleFavoriteEvent,
@@ -85,6 +85,39 @@ function EventDetailsPage() {
         setSelectedTicketTypeId("");
       });
   }, [event, isPublicPage]);
+
+  useEffect(() => {
+    if (!event || !user || isPublicPage) return;
+
+    eventsApi.browse({ publicOnly: true })
+      .then((events) => {
+        const similarEvents = events
+          .filter((item) =>
+            item.id !== event.id &&
+            item.title !== event.title &&
+            item.category === event.category &&
+            new Date(item.startUtc || item.date).getTime() > Date.now()
+          )
+          .filter((item, index, items) => items.findIndex((nextItem) => nextItem.title === item.title) === index)
+          .slice(0, 3);
+
+        if (!similarEvents.length) return;
+
+        const notificationKey = `ai-recommendation-${event.id}`;
+        const titles = similarEvents.map((item) => item.title).join(", ");
+
+        addBuyerNotification({
+          id: notificationKey,
+          type: "ai-recommendation",
+          title: `AI found more ${event.category} events`,
+          message: `Because you viewed ${event.title}, you may also like: ${titles}.`,
+          eventId: event.id,
+          targetEventId: similarEvents[0].id,
+          category: event.category,
+        });
+      })
+      .catch(() => {});
+  }, [event, isPublicPage, user]);
 
   const selectedTicketType = useMemo(
     () => ticketTypes.find((type) => type.id === selectedTicketTypeId),
@@ -208,10 +241,6 @@ function EventDetailsPage() {
           <p><FaCalendarAlt /> {event.date}{event.time ? `, ${event.time}` : ""}</p>
           <p><FaMapMarkerAlt /> {event.venue}, {event.city}</p>
           <p><FaUserTie /> {event.speakerName || event.organizerName || "Speaker info coming soon"}</p>
-          <div className="ai-note">
-            <FaRobot />
-            <span>AI recommendation: this event matches your recent searches and saved tickets.</span>
-          </div>
         </article>
 
         <aside className="panel checkout-panel">

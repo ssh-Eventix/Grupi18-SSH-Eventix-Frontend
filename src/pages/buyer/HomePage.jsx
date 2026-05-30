@@ -3,15 +3,49 @@ import { Link, useLocation } from "react-router-dom";
 import {
   FaCalendarAlt,
   FaHeart,
+  FaLightbulb,
   FaMapMarkerAlt,
+  FaPaperPlane,
+  FaRobot,
   FaSearch,
   FaTicketAlt,
+  FaTimes,
   FaUserCircle,
 } from "react-icons/fa";
 import { useAuth } from "../../auth/AuthContext";
 import { eventsApi } from "../../api/eventsApi";
+import aiService from "../../services/aiService";
 import { isFavoriteEvent, toggleFavoriteEvent } from "../../services/buyerStorage";
 import AuthPromptModal from "../../components/AuthPromptModal";
+
+const getWeekRange = (offsetWeeks = 0) => {
+  const now = new Date();
+  const start = new Date(now);
+  const day = start.getDay() || 7;
+
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - day + 1 + offsetWeeks * 7);
+
+  const end = new Date(start);
+  end.setDate(start.getDate() + 7);
+
+  return { start, end };
+};
+
+const isEventInWeek = (event, offsetWeeks) => {
+  const eventDate = new Date(event.startUtc || event.date);
+  if (Number.isNaN(eventDate.getTime())) return false;
+
+  const { start, end } = getWeekRange(offsetWeeks);
+  return eventDate >= start && eventDate < end;
+};
+
+const aiQuickPrompts = [
+  "Show me free events",
+  "Recommend a music event",
+  "What is happening next week?",
+  "Compare Prizren Friday Beats and Gjakova Weekend Stage",
+];
 
 function HomePage() {
   const { user } = useAuth();
@@ -23,10 +57,16 @@ function HomePage() {
   const [query, setQuery] = useState("");
   const [city, setCity] = useState("");
   const [category, setCategory] = useState("all");
+  const [dateFilter, setDateFilter] = useState("all");
   const [freeOnly, setFreeOnly] = useState(false);
   const [events, setEvents] = useState([]);
   const [favoriteIds, setFavoriteIds] = useState(() => new Set());
   const [authPrompt, setAuthPrompt] = useState(null);
+  const [aiQuestion, setAiQuestion] = useState("");
+  const [chatMessages, setChatMessages] = useState([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
+  const [chatOpen, setChatOpen] = useState(false);
 
   const cityOptions = useMemo(
     () => [...new Set(events.map((event) => event.city).filter(Boolean))],
@@ -70,11 +110,15 @@ function HomePage() {
         || event.venue.toLowerCase().includes(normalizedQuery);
       const matchesCity = !normalizedCity || event.city.toLowerCase().startsWith(normalizedCity);
       const matchesCategory = category === "all" || event.category === category;
+      const matchesDate =
+        dateFilter === "all" ||
+        (dateFilter === "thisWeek" && isEventInWeek(event, 0)) ||
+        (dateFilter === "nextWeek" && isEventInWeek(event, 1));
       const matchesFree = !freeOnly || event.price === "Free";
 
-      return matchesQuery && matchesCity && matchesCategory && matchesFree;
+      return matchesQuery && matchesCity && matchesCategory && matchesDate && matchesFree;
     });
-  }, [category, city, events, freeOnly, query]);
+  }, [category, city, dateFilter, events, freeOnly, query]);
 
   const heroEvent = visibleEvents[0] || events[0];
 
@@ -90,6 +134,7 @@ function HomePage() {
     setQuery("");
     setCity("");
     setCategory("all");
+    setDateFilter("all");
     setFreeOnly(false);
   };
 
@@ -104,6 +149,46 @@ function HomePage() {
 
     const next = toggleFavoriteEvent(event);
     setFavoriteIds(new Set(next.map((item) => item.id)));
+  };
+
+  const askAi = async () => {
+    const question = aiQuestion.trim();
+    if (!question) return;
+
+    setAiLoading(true);
+    setAiError("");
+    setAiQuestion("");
+    setChatMessages((messages) => [...messages, { role: "user", text: question }]);
+
+    try {
+      const data = await aiService.buyerChat(question);
+      setChatMessages((messages) => [...messages, { role: "assistant", text: data.response || "" }]);
+      setAiError("");
+    } catch {
+      setAiError("AI assistant could not answer right now.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const submitQuickPrompt = async (prompt) => {
+    if (aiLoading) return;
+
+    setAiQuestion(prompt);
+    setAiLoading(true);
+    setAiError("");
+    setChatMessages((messages) => [...messages, { role: "user", text: prompt }]);
+
+    try {
+      const data = await aiService.buyerChat(prompt);
+      setChatMessages((messages) => [...messages, { role: "assistant", text: data.response || "" }]);
+      setAiError("");
+    } catch {
+      setAiError("AI assistant could not answer right now.");
+    } finally {
+      setAiQuestion("");
+      setAiLoading(false);
+    }
   };
 
   return (
@@ -265,6 +350,32 @@ function HomePage() {
             </div>
           </div>
           <div className="filter-group">
+            <span>Date</span>
+            <div className="filter-chips">
+              <button
+                className={dateFilter === "all" ? "active" : ""}
+                onClick={() => setDateFilter("all")}
+                type="button"
+              >
+                All
+              </button>
+              <button
+                className={dateFilter === "thisWeek" ? "active" : ""}
+                onClick={() => setDateFilter("thisWeek")}
+                type="button"
+              >
+                This week
+              </button>
+              <button
+                className={dateFilter === "nextWeek" ? "active" : ""}
+                onClick={() => setDateFilter("nextWeek")}
+                type="button"
+              >
+                Next week
+              </button>
+            </div>
+          </div>
+          <div className="filter-group">
             <span>Popular Cities</span>
             <div className="filter-chips">
               {cityOptions.map((item) => (
@@ -296,6 +407,93 @@ function HomePage() {
           onClose={() => setAuthPrompt(null)}
           redirectTo={authPrompt.redirectTo}
         />
+      )}
+      {!isPublicPage && user && (
+        <div className={`buyer-chatbot ${chatOpen ? "open" : ""}`}>
+          {chatOpen && (
+            <section className="buyer-chatbot-panel" aria-label="AI chatbot">
+              <div className="buyer-chatbot-header">
+                <div className="buyer-chatbot-title">
+                  <span className="buyer-chatbot-avatar"><FaRobot /></span>
+                  <div>
+                    <strong>Eventix AI</strong>
+                    <span><i /> Online event assistant</span>
+                  </div>
+                </div>
+                <button aria-label="Close AI chat" onClick={() => setChatOpen(false)} type="button">
+                  <FaTimes />
+                </button>
+              </div>
+              <div className="buyer-chatbot-body">
+                <div className="chat-intro">
+                  <FaLightbulb />
+                  <div>
+                    <strong>Ask me about events</strong>
+                    <span>Recommendations, free events, cities, categories, or comparisons.</span>
+                  </div>
+                </div>
+                {chatMessages.map((message, index) => (
+                  <div className={`chat-message ${message.role}`} key={`${message.role}-${index}`}>
+                    {message.text}
+                  </div>
+                ))}
+                {aiLoading && (
+                  <div className="chat-message assistant typing-message">
+                    <span />
+                    <span />
+                    <span />
+                  </div>
+                )}
+                {aiError && <small className="form-error">{aiError}</small>}
+              </div>
+              <div className="buyer-chatbot-prompts" aria-label="Suggested AI questions">
+                {aiQuickPrompts.map((prompt) => (
+                  <button
+                    disabled={aiLoading}
+                    key={prompt}
+                    onClick={() => submitQuickPrompt(prompt)}
+                    type="button"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+                {chatMessages.length > 0 && (
+                  <button
+                    className="chat-reset-button"
+                    disabled={aiLoading}
+                    onClick={() => {
+                      setChatMessages([]);
+                      setAiError("");
+                    }}
+                    type="button"
+                  >
+                    New chat
+                  </button>
+                )}
+              </div>
+              <div className="buyer-chatbot-input">
+                <textarea
+                  onChange={(event) => setAiQuestion(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      askAi();
+                    }
+                  }}
+                  placeholder="Ask about events..."
+                  rows={2}
+                  value={aiQuestion}
+                />
+                <button aria-label="Send AI message" disabled={aiLoading || !aiQuestion.trim()} onClick={askAi} type="button">
+                  <FaPaperPlane />
+                </button>
+              </div>
+            </section>
+          )}
+          <button className="buyer-chatbot-toggle" onClick={() => setChatOpen((value) => !value)} type="button">
+            <FaRobot />
+          </button>
+        </div>
       )}
     </section>
   );

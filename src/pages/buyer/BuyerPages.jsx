@@ -19,6 +19,7 @@ import {
   getBuyerReviews,
   getBuyerTickets,
   getFavoriteEvents,
+  markBuyerNotificationRead,
   readObject,
   toggleFavoriteEvent,
   writeJson,
@@ -295,13 +296,18 @@ export function ProfilePage() {
 }
 
 export function BuyerSettingsPage() {
-  const notifications = getBuyerNotifications();
+  const [notifications, setNotifications] = useState(getBuyerNotifications);
   const reviews = getBuyerReviews();
   const savedProfile = readObject("buyerProfile", {});
   const { user } = useAuth();
   const userEmail = normalizeEmail(user?.email);
   const savedEmail = savedProfile.email === "buyer@eventix.test" ? "" : normalizeEmail(savedProfile.email);
   const displayEmail = userEmail || savedEmail || "buyer@eventix.test";
+
+  const openNotification = (notification) => {
+    const nextNotifications = markBuyerNotificationRead(notification.id);
+    setNotifications(nextNotifications);
+  };
 
   return (
     <section className="buyer-page simple-buyer-page">
@@ -317,19 +323,25 @@ export function BuyerSettingsPage() {
         <article className="panel settings-card">
           <div className="account-card-title">
             <FaBell />
-            <h2>Ticket Notifications</h2>
+            <h2>Notifications</h2>
           </div>
           {notifications.length ? notifications.map((notification) => (
-            <div className="setting-row" key={notification.id}>
+            <button
+              className={`setting-row notification-row ${notification.read ? "read" : "unread"}`}
+              key={notification.id}
+              onClick={() => openNotification(notification)}
+              type="button"
+            >
               <span>
                 <strong>{notification.title}</strong>
                 <small>{notification.message}</small>
               </span>
-            </div>
+              {!notification.read && <b>New</b>}
+            </button>
           )) : (
             <div className="empty-state">
               <strong>No notifications yet</strong>
-              <p>When you buy tickets, booking item notifications will appear here.</p>
+              <p>AI event recommendations will appear here after you view events.</p>
             </div>
           )}
         </article>

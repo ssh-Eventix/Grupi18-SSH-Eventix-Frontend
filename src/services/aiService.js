@@ -15,6 +15,16 @@ export const aiService = {
     const response = await api.get(`/ai/review-summary/${eventId}`);
     return response.data;
   },
+
+  getBuyerRecommendations: async () => {
+    const response = await api.get("/ai/buyer/recommendations");
+    return response.data;
+  },
+
+  buyerChat: async (prompt) => {
+    const response = await api.post("/ai/buyer/chat", { prompt });
+    return response.data;
+  },
 };
 
 export default aiService;

@@ -29,6 +29,10 @@ if (url.includes("/Events/public")) {
   return config;
 }
 
+  if (url.includes("/ai/buyer")) {
+    delete config.headers["X-Tenant-Slug"];
+  }
+
   if (
     url.includes("/auth/register") ||
     url.includes("/auth/forgot-password") ||
@@ -65,7 +69,7 @@ if (url.includes("/Events/public")) {
     return config;
   }
 
-  if (tenantSlug) {
+  if (tenantSlug && !url.includes("/ai/buyer")) {
     config.headers["X-Tenant-Slug"] = tenantSlug;
   } else {
     delete config.headers["X-Tenant-Slug"];

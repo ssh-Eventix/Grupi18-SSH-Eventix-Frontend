@@ -61,6 +61,23 @@ const StartRedirect = () => {
   return <Navigate to={startupPathFromToken()} replace />;
 };
 
+const isEventThisWeek = (event) => {
+  const eventDate = new Date(event.startUtc || event.date);
+  if (Number.isNaN(eventDate.getTime())) return false;
+
+  const now = new Date();
+  const start = new Date(now);
+  const day = start.getDay() || 7;
+
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - day + 1);
+
+  const end = new Date(start);
+  end.setDate(start.getDate() + 7);
+
+  return eventDate >= start && eventDate < end;
+};
+
 function AppRoutes() {
   return (
     <Routes>
@@ -71,13 +88,14 @@ function AppRoutes() {
         <Route path="/buyer" element={<BuyerLayout />}>
           <Route index element={<HomePage />} />
           <Route path="top-events" element={<BuyerEventsPage title="Top Events" filter={(event) => event.tag === "Top Event"} />} />
-          <Route path="weekend" element={<BuyerEventsPage title="This Weekend" filter={(event) => event.tag === "This Weekend"} />} />
+          <Route path="weekend" element={<BuyerEventsPage title="This Weekend" filter={isEventThisWeek} />} />
           <Route path="free-events" element={<BuyerEventsPage title="Free Events" filter={(event) => event.price === "Free"} />} />
           <Route path="events/:eventId" element={<EventDetailsPage />} />
           <Route path="checkout/:eventId" element={<CheckoutPage />} />
           <Route path="payment/:eventId" element={<PaymentPage />} />
           <Route path="tickets" element={<BuyerTicketsPage />} />
           <Route path="favorites" element={<FavoritesPage />} />
+          <Route path="notifications" element={<BuyerSettingsPage />} />
           <Route path="profile" element={<BuyerProfilePage />} />
           <Route path="settings" element={<BuyerSettingsPage />} />
         </Route>
