@@ -240,7 +240,11 @@ function EventDetailsPage() {
           <h2>Event Details</h2>
           <p><FaCalendarAlt /> {event.date}{event.time ? `, ${event.time}` : ""}</p>
           <p><FaMapMarkerAlt /> {event.venue}, {event.city}</p>
-          <p><FaUserTie /> {event.speakerName || event.organizerName || "Speaker info coming soon"}</p>
+          {event.organizerName && (
+              <p>
+                <FaUserTie /> Organized by {event.organizerName}
+              </p>
+            )}
         </article>
 
         <aside className="panel checkout-panel">
