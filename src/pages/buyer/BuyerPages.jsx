@@ -71,16 +71,37 @@ const normalizeEmail = (email) => {
   return typeof email === "string" ? email : "";
 };
 
-export function BuyerEventsPage({ title, filter }) {
+export function BuyerEventsPage({ title, filter, topOnly = false }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [events, setEvents] = useState([]);
 
   useEffect(() => {
-    eventsApi.browse({ publicOnly: false }).then(setEvents).catch(() => setEvents([]));
+    eventsApi
+      .browse({ publicOnly: false })
+      .then(setEvents)
+      .catch(() => setEvents([]));
   }, []);
 
-  const visibleEvents = events.filter(filter ?? (() => true));
+  const visibleEvents = useMemo(() => {
+    let result = events.filter(filter ?? (() => true));
+
+    if (topOnly) {
+  result = [...result]
+    .sort((a, b) => {
+      const aScore =
+        Number(a.soldTickets ?? a.ticketsSold ?? a.bookingCount ?? a.totalBookings ?? 0);
+
+      const bScore =
+        Number(b.soldTickets ?? b.ticketsSold ?? b.bookingCount ?? b.totalBookings ?? 0);
+
+      return bScore - aScore;
+    })
+    .slice(0, 20);
+}
+
+    return result;
+  }, [events, filter, topOnly]);
 
   return (
     <section className="buyer-page simple-buyer-page">
@@ -88,10 +109,18 @@ export function BuyerEventsPage({ title, filter }) {
         <h1>{title}</h1>
         <Link to="/buyer">Back to Discover</Link>
       </div>
-      <EventCards
-        events={visibleEvents}
-        onFavoriteClick={() => navigate("/login", { state: { from: location } })}
-      />
+
+      {visibleEvents.length ? (
+        <EventCards
+          events={visibleEvents}
+          onFavoriteClick={() => navigate("/login", { state: { from: location } })}
+        />
+      ) : (
+        <div className="empty-state">
+          <strong>No events found</strong>
+          <p>There are no events to display yet.</p>
+        </div>
+      )}
     </section>
   );
 }
