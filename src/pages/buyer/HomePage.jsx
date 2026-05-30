@@ -121,6 +121,8 @@ function HomePage() {
   }, [category, city, dateFilter, events, freeOnly, query]);
 
   const heroEvent = visibleEvents[0] || events[0];
+  const featuredEvents = visibleEvents.slice(0, 2);
+  const latestEvents = visibleEvents.slice(2, 8);
 
   const handleSearch = (event) => {
     event.preventDefault();
@@ -267,6 +269,7 @@ function HomePage() {
           {heroEvent && (
             <section className="hero-event" style={{ backgroundImage: `linear-gradient(90deg, rgba(0,0,0,.82), rgba(0,0,0,.28)), url("${heroEvent.image}")` }}>
               <div>
+                <span className="hero-kicker">Eventix Tickets</span>
                 <h1>{heroEvent.title}</h1>
                 <p>{heroEvent.description}</p>
                 <div className="hero-meta">
@@ -279,9 +282,33 @@ function HomePage() {
             </section>
           )}
 
+          <section className="event-ticker" aria-label="Upcoming event shortcuts">
+            {visibleEvents.slice(0, 7).map((event) => (
+              <Link key={`ticker-${event.id}`} to={`${eventDetailsBase}/${event.id}`}>
+                <span>{event.date}</span>
+                <strong>{event.title}</strong>
+              </Link>
+            ))}
+          </section>
+
+          <section className="event-promo-band">
+            <div>
+              <span>Curated for you</span>
+              <h2>Find the right event without scrolling forever.</h2>
+              <p>Use the filters, pick a category, or jump into the most relevant events for this week.</p>
+            </div>
+            <button type="button" onClick={() => setDateFilter("thisWeek")}>
+              This week
+            </button>
+          </section>
+
           <section className="event-section">
             <div className="panel-title">
-              <h2>Popular Events Near You</h2>
+              <div>
+                <span className="section-kicker">Featured</span>
+                <h2>Book tickets with Eventix</h2>
+                <p className="section-note">Official ticketing for festivals, concerts, meetups, and cultural nights.</p>
+              </div>
               <Link to={isPublicPage ? "/login" : "/buyer/top-events"} state={isPublicPage ? { from: location, forceAuthPrompt: true } : undefined}>View All</Link>
             </div>
             {query && (
@@ -295,8 +322,8 @@ function HomePage() {
               </p>
             )}
             <div className="event-card-grid">
-              {visibleEvents.map((event) => (
-                <article className="event-card" key={event.id}>
+              {featuredEvents.map((event) => (
+                <article className="event-card featured-event-card" key={event.id}>
                   <div className="event-card-image" style={{ backgroundImage: `url("${event.image}")` }}>
                     <button
                       aria-label={`Save ${event.title}`}
@@ -307,16 +334,53 @@ function HomePage() {
                       <FaHeart />
                     </button>
                   </div>
-                  <Link className="event-title-link" to={`${eventDetailsBase}/${event.id}`}>
-                    {event.title}
-                  </Link>
-                  <span>{event.category}</span>
-                  <small>{event.date}{event.time ? ` - ${event.time}` : ""}</small>
-                  <small>{event.venue}</small>
-                  <b>{event.price}</b>
-                  <Link className="mini-ticket-link" to={`${eventDetailsBase}/${event.id}`}>
-                    <FaTicketAlt /> View details
-                  </Link>
+                  <div className="event-card-content">
+                    <span>{event.category}</span>
+                    <Link className="event-title-link" to={`${eventDetailsBase}/${event.id}`}>
+                      {event.title}
+                    </Link>
+                    <small>{event.date}{event.time ? ` - ${event.time}` : ""}</small>
+                    <small>{event.venue}</small>
+                    <div className="event-card-actions">
+                      <b>{event.price}</b>
+                      <Link className="mini-ticket-link" to={`${eventDetailsBase}/${event.id}`}>
+                        <FaTicketAlt /> View details
+                      </Link>
+                    </div>
+                  </div>
+                </article>
+              ))}
+              <article className="event-space-card">
+                <span>Explore smarter</span>
+                <h3>Only the best picks first.</h3>
+                <p>More events are still available through search and filters, but the page stays clean.</p>
+              </article>
+              {latestEvents.map((event) => (
+                <article className="event-card compact-event-card" key={event.id}>
+                  <div className="event-card-image" style={{ backgroundImage: `url("${event.image}")` }}>
+                    <button
+                      aria-label={`Save ${event.title}`}
+                      className={favoriteIds.has(event.id) ? "favorite-active" : ""}
+                      onClick={() => handleFavorite(event)}
+                      type="button"
+                    >
+                      <FaHeart />
+                    </button>
+                  </div>
+                  <div className="event-card-content">
+                    <span>{event.category}</span>
+                    <Link className="event-title-link" to={`${eventDetailsBase}/${event.id}`}>
+                      {event.title}
+                    </Link>
+                    <small>{event.date}{event.time ? ` - ${event.time}` : ""}</small>
+                    <small>{event.venue}</small>
+                    <div className="event-card-actions">
+                      <b>{event.price}</b>
+                      <Link className="mini-ticket-link" to={`${eventDetailsBase}/${event.id}`}>
+                        <FaTicketAlt /> View details
+                      </Link>
+                    </div>
+                  </div>
                 </article>
               ))}
             </div>
@@ -401,6 +465,10 @@ function HomePage() {
           </button>
         </aside>
       </div>
+      <footer className="buyer-footer">
+        <strong>Eventix</strong>
+        <span>Made for events, tickets, and unforgettable nights.</span>
+      </footer>
       {authPrompt && (
         <AuthPromptModal
           message={authPrompt.message}
