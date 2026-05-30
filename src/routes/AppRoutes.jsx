@@ -88,7 +88,7 @@ function AppRoutes() {
         <Route path="/buyer" element={<BuyerLayout />}>
           <Route index element={<HomePage />} />
           <Route path="top-events" element={<BuyerEventsPage title="Top Events" filter={(event) => event.tag === "Top Event"} />} />
-          <Route path="weekend" element={<BuyerEventsPage title="This Weekend" filter={isEventThisWeek} />} />
+          <Route path="weekend" element={<BuyerEventsPage title="This Week" filter={isEventThisWeek} />} />
           <Route path="free-events" element={<BuyerEventsPage title="Free Events" filter={(event) => event.price === "Free"} />} />
           <Route path="events/:eventId" element={<EventDetailsPage />} />
           <Route path="checkout/:eventId" element={<CheckoutPage />} />
