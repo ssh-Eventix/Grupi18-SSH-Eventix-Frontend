@@ -5,6 +5,7 @@ import { aiService } from "../../services/aiService";
 import { eventCategoriesService } from "../../services/eventCategoriesService";
 import { eventsService } from "../../services/eventsService";
 import { venuesService } from "../../services/venuesService";
+import { venueSectionsService } from "../../services/venueSectionsService";
 import { handleApiError } from "../../utils/apiErrorHandler";
 import Alert from "../../components/Alert";
 
@@ -104,6 +105,28 @@ const formatVenueOptionLabel = (venue) => {
 
   return `${name} - ${source}`;
 };
+
+const buildVenuePayload = (venue) => ({
+  name: venue.name || "Imported venue",
+  code: venue.code || `VEN-${Date.now()}`,
+  addressLine1: venue.addressLine1 || venue.address || "Not specified",
+  city: venue.city || "Not specified",
+  country: venue.country || "Not specified",
+  totalCapacity: Number(venue.totalCapacity || venue.capacity || 0),
+  isIndoor: venue.isIndoor ?? true,
+  isAccessible: venue.isAccessible ?? true,
+});
+
+const buildVenueSectionPayload = (section, venueId) => ({
+  venueId,
+  name: section.name || "General",
+  code: section.code || `SEC-${Date.now()}`,
+  capacity: Number(section.capacity || 0),
+  seatType: Number(section.seatType ?? 0),
+  displayOrder: Number(section.displayOrder || 0),
+  isActive: section.isActive ?? true,
+  defaultBasePrice: section.defaultBasePrice ?? null,
+});
 
 export default function EventsPage() {
   const [events, setEvents] = useState([]);
@@ -209,6 +232,45 @@ export default function EventsPage() {
       return map;
     }, {});
   }, [categories]);
+
+  const resolveTenantVenueId = async (venueId) => {
+    const selectedVenue = venues.find((venue) => String(venue.id) === String(venueId));
+
+    if (!selectedVenue || selectedVenue.source !== "public") {
+      return venueId;
+    }
+
+    const tenantVenues = toArray(await venuesService.getAllTenant());
+    const existingTenantVenue = tenantVenues.find(
+      (venue) =>
+        String(venue.code || "").toLowerCase() === String(selectedVenue.code || "").toLowerCase()
+    );
+
+    if (existingTenantVenue?.id) {
+      return existingTenantVenue.id;
+    }
+
+    const importedVenue = await venuesService.create(buildVenuePayload(selectedVenue));
+    const publicSections = toArray(await venueSectionsService.getByVenueId(selectedVenue.id));
+
+    await Promise.all(
+      publicSections.map(async (section) => {
+        try {
+          await venueSectionsService.create(buildVenueSectionPayload(section, importedVenue.id));
+        } catch {
+          // If a section already exists after a repeated import attempt, keep the venue import usable.
+        }
+      })
+    );
+
+    const nextVenues = [
+      ...venues.filter((venue) => String(venue.id) !== String(importedVenue.id)),
+      { ...importedVenue, source: "tenant" },
+    ];
+    setVenues(nextVenues);
+
+    return importedVenue.id;
+  };
 
   const eventColumns = useMemo(
     () => [
@@ -364,15 +426,21 @@ export default function EventsPage() {
     setMessage("");
 
     try {
+      const venueId = await resolveTenantVenueId(form.venueId);
+      const payload = {
+        ...form,
+        venueId,
+      };
+
       if (editingId) {
-        await eventsService.update(editingId, form);
+        await eventsService.update(editingId, payload);
         setRecentEvents((current) =>
-          mergeEventsById(current, [{ ...form, id: editingId, updatedAtUtc: new Date().toISOString() }])
+          mergeEventsById(current, [{ ...payload, id: editingId, updatedAtUtc: new Date().toISOString() }])
         );
         loadEvents();
         setMessage("Event updated.");
       } else {
-        const createdEvent = await eventsService.create(form);
+        const createdEvent = await eventsService.create(payload);
         setRecentEvents((current) => mergeEventsById(current, [createdEvent]));
         loadEvents();
         setMessage("Event created.");
