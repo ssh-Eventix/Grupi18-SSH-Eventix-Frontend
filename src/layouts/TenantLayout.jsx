@@ -11,6 +11,7 @@ import {
   FaStar,
   FaStore,
   FaUsers,
+  FaFilter,
   FaLayerGroup,
   FaTicketAlt,
   FaUserFriends,
@@ -20,7 +21,8 @@ import { useAuth } from "../auth/AuthContext";
 const adminLinks = [
   { path: "/tenant", label: "Overview", icon: FaChartBar, end: true },
   { path: "/tenant/events", label: "Events", icon: FaRegCalendarAlt },
-    { path: "/tenant/event-sections", label: "Event Sections", icon: FaLayerGroup },
+  { path: "/tenant/event-sections", label: "Event Sections", icon: FaLayerGroup },
+  { path: "/tenant/event-categories", label: "Event Categories", icon: FaFilter },
   { path: "/tenant/tickets", label: "Tickets", icon: FaTicketAlt },
   { path: "/tenant/payment-methods", label: "Payment Methods", icon: FaCreditCard },
   { path: "/tenant/coupons", label: "Coupons", icon: FaPercent },
